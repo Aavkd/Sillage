@@ -1,0 +1,609 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700&family=Newsreader:opsz,wght@6..72,400;6..72,500&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  body { margin: 0; background: #0E0906; font-family: Figtree, Helvetica, sans-serif; }
+  * { box-sizing: border-box; }
+  a { color: #E08A4B; }
+  a:hover { color: #F0A96F; }
+</style>
+</helmet>
+<div style="{{ vars }}">
+<div style="padding: 56px 64px 120px; display: flex; flex-direction: column; gap: 72px; background: var(--page, #0E0906); color: var(--text, #F6EDE4)">
+
+  <div style="display: flex; gap: 40px; align-items: flex-start; flex-wrap: wrap">
+    <div>
+      <div style="font-family: 'JetBrains Mono', monospace; font-size: 12px; letter-spacing: .18em; text-transform: uppercase; color: var(--dim, #999); margin-bottom: 10px">Passe de design · 13 août 2026</div>
+      <div style="font-size: 52px; font-weight: 600; letter-spacing: -.03em; line-height: 1">Sillage</div>
+      <div style="font-size: 17px; color: var(--dim, #999); max-width: 460px; margin-top: 12px; text-wrap: pretty">Transcription locale, éditable, synchronisée à l'audio. Sept écrans, verre chaud, thème clair et sombre.</div>
+    </div>
+
+    <div style="background: var(--panel); border: 1px solid var(--border); border-radius: 20px; backdrop-filter: blur(24px) saturate(1.3); padding: 20px 22px; display: flex; gap: 26px; align-items: flex-start; box-shadow: 0 24px 60px -30px rgba(20,8,0,.7)">
+      <div style="display: flex; flex-direction: column; gap: 10px; align-items: center">
+        <canvas ref="{{ wheelRef }}" onClick="{{ onWheel }}" width="320" height="320" style="width: 160px; height: 160px; border-radius: 50%; cursor: crosshair; display: block"></canvas>
+        <div style="font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--dim)">roue d'accent</div>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 16px; padding-top: 4px">
+        <div>
+          <div style="font-size: 11px; letter-spacing: .16em; text-transform: uppercase; color: var(--dim); margin-bottom: 8px">Accent</div>
+          <div style="display: flex; align-items: center; gap: 10px">
+            <div style="width: 30px; height: 30px; border-radius: 9px; background: var(--accent); box-shadow: 0 0 0 1px var(--border), 0 6px 18px -6px var(--accent)"></div>
+            <span style="font-family: 'JetBrains Mono', monospace; font-size: 14px">{{ accent }}</span>
+          </div>
+        </div>
+        <div style="display: flex; gap: 8px">
+          <sc-for list="{{ presets }}" as="p" hint-placeholder-count="5">
+            <button onClick="{{ p.pick }}" style="width: 24px; height: 24px; border-radius: 8px; border: 1px solid var(--border); cursor: pointer; padding: 0; background: {{ p.sw }}" style-hover="transform: translateY(-2px)"></button>
+          </sc-for>
+        </div>
+        <div>
+          <div style="font-size: 11px; letter-spacing: .16em; text-transform: uppercase; color: var(--dim); margin-bottom: 8px">Thème</div>
+          <div style="display: flex; gap: 6px; background: var(--sunken); border-radius: 10px; padding: 3px">
+            <button onClick="{{ setDark }}" style="border: 0; cursor: pointer; padding: 7px 14px; border-radius: 8px; font-family: Figtree, sans-serif; font-size: 13px; background: var(--darkBtn); color: var(--text)">Sombre</button>
+            <button onClick="{{ setLight }}" style="border: 0; cursor: pointer; padding: 7px 14px; border-radius: 8px; font-family: Figtree, sans-serif; font-size: 13px; background: var(--lightBtn); color: var(--text)">Clair</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 1. BIBLIOTHÈQUE -->
+  <div style="display: flex; flex-direction: column; gap: 16px">
+    <div style="display: flex; align-items: baseline; gap: 14px">
+      <span style="font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--accent)">01</span>
+      <span style="font-size: 22px; font-weight: 600; letter-spacing: -.01em">Bibliothèque</span>
+      <span style="font-size: 14px; color: var(--dim)">accueil · file séquentielle en cours</span>
+    </div>
+
+    <div data-screen-label="01 Bibliothèque" style="width: 1360px; height: 900px; border-radius: 22px; overflow: hidden; position: relative; background: var(--frame); box-shadow: 0 40px 90px -40px rgba(20,8,0,.8), 0 0 0 1px var(--border)">
+      <div style="position: absolute; inset: 0; background: var(--mesh); pointer-events: none"></div>
+
+      <div style="position: relative; height: 100%; display: flex; flex-direction: column">
+        <div style="height: 46px; display: flex; align-items: center; justify-content: space-between; padding: 0 18px; -webkit-app-region: drag">
+          <div style="display: flex; align-items: center; gap: 10px">
+            <div style="width: 9px; height: 9px; border-radius: 50%; background: var(--accent)"></div>
+            <span style="font-size: 13px; font-weight: 600; letter-spacing: .02em">Sillage</span>
+          </div>
+          <div style="display: flex; gap: 18px; color: var(--dim); font-size: 15px; font-family: 'JetBrains Mono', monospace">
+            <span>—</span><span>▢</span><span>✕</span>
+          </div>
+        </div>
+
+        <div style="flex: 1; display: grid; grid-template-columns: 232px 1fr; gap: 0; min-height: 0">
+          <div style="padding: 14px 16px 20px; display: flex; flex-direction: column; gap: 22px; border-right: 1px solid var(--border)">
+            <div style="display: flex; flex-direction: column; gap: 4px">
+              <div style="padding: 9px 12px; border-radius: 11px; background: var(--sel); font-size: 14px; font-weight: 500; display: flex; justify-content: space-between"><span>Bibliothèque</span><span style="color: var(--dim); font-family: 'JetBrains Mono', monospace; font-size: 12px">24</span></div>
+              <div style="padding: 9px 12px; border-radius: 11px; font-size: 14px; color: var(--dim); display: flex; justify-content: space-between"><span>File d'attente</span><span style="font-family: 'JetBrains Mono', monospace; font-size: 12px">3</span></div>
+              <div style="padding: 9px 12px; border-radius: 11px; font-size: 14px; color: var(--dim)">Réglages</div>
+            </div>
+            <div>
+              <div style="font-size: 11px; letter-spacing: .16em; text-transform: uppercase; color: var(--dim); margin-bottom: 10px">Tags</div>
+              <div style="display: flex; flex-wrap: wrap; gap: 6px">
+                <span style="font-size: 12.5px; padding: 5px 10px; border-radius: 999px; border: 1px solid var(--accent); color: var(--accent); background: var(--accentSoft)">client</span>
+                <span style="font-size: 12.5px; padding: 5px 10px; border-radius: 999px; border: 1px solid var(--border); color: var(--dim)">interne</span>
+                <span style="font-size: 12.5px; padding: 5px 10px; border-radius: 999px; border: 1px solid var(--border); color: var(--dim)">idées</span>
+                <span style="font-size: 12.5px; padding: 5px 10px; border-radius: 999px; border: 1px solid var(--border); color: var(--dim)">entretien</span>
+                <span style="font-size: 12.5px; padding: 5px 10px; border-radius: 999px; border: 1px solid var(--border); color: var(--dim)">mémo</span>
+              </div>
+            </div>
+            <div style="margin-top: auto; background: var(--panel); border: 1px solid var(--border); border-radius: 14px; padding: 12px 13px; backdrop-filter: blur(18px)">
+              <div style="font-size: 12px; color: var(--dim); margin-bottom: 6px">Moteur</div>
+              <div style="font-size: 13px; display: flex; justify-content: space-between"><span>large-v3-turbo</span><span style="color: var(--ok)">chargé</span></div>
+              <div style="font-size: 13px; display: flex; justify-content: space-between; margin-top: 3px"><span>llama3.1:8b</span><span style="color: var(--ok)">prêt</span></div>
+            </div>
+          </div>
+
+          <div style="padding: 14px 22px 20px; display: flex; flex-direction: column; gap: 16px; min-height: 0">
+            <div style="display: flex; gap: 12px; align-items: center">
+              <div style="flex: 1; display: flex; align-items: center; gap: 10px; height: 40px; padding: 0 14px; border-radius: 12px; background: var(--panel); border: 1px solid var(--border); backdrop-filter: blur(18px)">
+                <span style="color: var(--dim); font-size: 14px">⌕</span>
+                <span style="color: var(--dim); font-size: 14px">Rechercher dans les transcriptions, résumés, titres</span>
+                <span style="margin-left: auto; font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--dim)">Ctrl+Shift+F</span>
+              </div>
+              <div style="height: 40px; display: flex; align-items: center; gap: 8px; padding: 0 16px; border-radius: 12px; background: var(--accent); color: var(--onAccent); font-size: 14px; font-weight: 600; box-shadow: 0 10px 26px -12px var(--accent)">Enregistrer</div>
+            </div>
+
+            <div style="border: 1.5px dashed var(--dashed); border-radius: 16px; background: var(--dropBg); backdrop-filter: blur(18px); padding: 20px 22px; display: flex; align-items: center; gap: 22px">
+              <div style="width: 46px; height: 46px; border-radius: 14px; background: var(--accentSoft); border: 1px solid var(--accent); display: flex; align-items: center; justify-content: center; color: var(--accent); font-size: 20px">↓</div>
+              <div style="flex: 1">
+                <div style="font-size: 15px; font-weight: 600">Déposez un fichier audio ou vidéo</div>
+                <div style="font-size: 13.5px; color: var(--dim); margin-top: 3px">n'importe où dans la fenêtre · ou <span style="color: var(--accent)">parcourir</span> · ou collez un chemin / une URL</div>
+              </div>
+              <div style="display: flex; align-items: center; gap: 10px; height: 36px; padding: 0 14px; border-radius: 10px; border: 1px solid var(--border); font-size: 13.5px; color: var(--dim); background: var(--sunken); min-width: 240px">https://…</div>
+            </div>
+
+            <div style="display: flex; flex-direction: column; gap: 10px; overflow: hidden">
+              <div style="background: var(--panel); border: 1px solid var(--accent); border-radius: 16px; backdrop-filter: blur(20px) saturate(1.3); padding: 16px 18px; box-shadow: 0 20px 50px -30px var(--accent)">
+                <div style="display: flex; align-items: center; gap: 10px">
+                  <span style="width: 7px; height: 7px; border-radius: 50%; background: var(--accent)"></span>
+                  <span style="font-size: 16px; font-weight: 600">Entretien Marchand — restitution terrain</span>
+                  <span style="font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--accent); border: 1px solid var(--accent); border-radius: 6px; padding: 2px 6px">EN COURS</span>
+                  <span style="margin-left: auto; font-family: 'JetBrains Mono', monospace; font-size: 12.5px; color: var(--dim)">ETA 1 min 40 s</span>
+                </div>
+                <div style="height: 4px; border-radius: 999px; background: var(--sunken); margin: 12px 0 10px; overflow: hidden">
+                  <div style="width: 62%; height: 100%; background: var(--accent)"></div>
+                </div>
+                <div style="font-family: Newsreader, serif; font-size: 15px; line-height: 1.6; color: var(--dim)">…ce qu'on a vu sur le terrain, c'est que les équipes reprennent la saisie deux fois, une fois sur le carnet et une fois le soir <span style="color: var(--text)">dans l'outil, et personne ne</span><span style="display: inline-block; width: 8px; height: 15px; background: var(--accent); vertical-align: -2px; margin-left: 3px"></span></div>
+                <div style="display: flex; gap: 14px; margin-top: 12px; font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--dim)">
+                  <span>13 août · 09:12</span><span>18:42</span><span>fr</span><span>turbo</span>
+                </div>
+              </div>
+
+              <sc-for list="{{ cards }}" as="c" hint-placeholder-count="3">
+                <div style="background: var(--panel); border: 1px solid var(--border); border-radius: 16px; backdrop-filter: blur(20px); padding: 15px 18px">
+                  <div style="display: flex; align-items: center; gap: 10px">
+                    <span style="font-size: 16px; font-weight: 600">{{ c.title }}</span>
+                    <span style="font-size: 12px; color: var(--dim); border-bottom: 1px dashed var(--dim)">modifier</span>
+                    <span style="margin-left: auto; display: flex; gap: 6px">
+                      <sc-for list="{{ c.tags }}" as="t" hint-placeholder-count="2">
+                        <span style="font-size: 12px; padding: 3px 9px; border-radius: 999px; border: 1px solid var(--border); color: var(--dim)">{{ t }}</span>
+                      </sc-for>
+                    </span>
+                  </div>
+                  <div style="font-size: 14.5px; color: var(--dim); margin-top: 6px; text-wrap: pretty">{{ c.summary }}</div>
+                  <div style="display: flex; gap: 14px; margin-top: 10px; font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--faint)">
+                    <span>{{ c.date }}</span><span>{{ c.dur }}</span><span>{{ c.lang }}</span><span>{{ c.model }}</span>
+                  </div>
+                </div>
+              </sc-for>
+
+              <div style="background: var(--panel); border: 1px solid var(--errBorder); border-radius: 16px; backdrop-filter: blur(20px); padding: 15px 18px">
+                <div style="display: flex; align-items: center; gap: 10px">
+                  <span style="font-size: 16px; font-weight: 600">reunion-comex.mp4</span>
+                  <span style="font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--err); border: 1px solid var(--errBorder); border-radius: 6px; padding: 2px 6px">ÉCHEC</span>
+                  <span style="margin-left: auto; font-size: 13.5px; color: var(--accent)">Réessayer</span>
+                </div>
+                <div style="font-size: 14.5px; color: var(--dim); margin-top: 6px">Le fichier ne contient aucune piste audio. La file a continué avec le fichier suivant.</div>
+              </div>
+
+              <div style="display: flex; align-items: center; gap: 12px; padding: 12px 18px; border-radius: 16px; border: 1px dashed var(--border); color: var(--dim); font-size: 14px">
+                <span style="font-family: 'JetBrains Mono', monospace; font-size: 12px">2 en attente</span>
+                <span>memo-vocal-0813.m4a · notes-projet.wav</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 2. DÉTAIL -->
+  <div style="display: flex; flex-direction: column; gap: 16px">
+    <div style="display: flex; align-items: baseline; gap: 14px">
+      <span style="font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--accent)">02</span>
+      <span style="font-size: 22px; font-weight: 600; letter-spacing: -.01em">Détail d'une transcription</span>
+      <span style="font-size: 14px; color: var(--dim)">colonne unique · lecteur épinglé · panneaux LLM au-dessus du héros</span>
+    </div>
+
+    <div data-screen-label="02 Détail" style="width: 1360px; height: 980px; border-radius: 22px; overflow: hidden; position: relative; background: var(--frame); box-shadow: 0 40px 90px -40px rgba(20,8,0,.8), 0 0 0 1px var(--border)">
+      <div style="position: absolute; inset: 0; background: var(--mesh); pointer-events: none"></div>
+      <div style="position: relative; height: 100%; display: flex; flex-direction: column">
+        <div style="height: 46px; display: flex; align-items: center; gap: 14px; padding: 0 18px">
+          <span style="font-size: 14px; color: var(--dim)">← Bibliothèque</span>
+          <span style="margin-left: auto; font-family: 'JetBrains Mono', monospace; font-size: 15px; color: var(--dim)">— ▢ ✕</span>
+        </div>
+
+        <div style="flex: 1; overflow: hidden; display: flex; justify-content: center">
+          <div style="width: 880px; display: flex; flex-direction: column; gap: 18px; padding-bottom: 24px">
+
+            <div>
+              <div style="display: flex; align-items: center; gap: 12px">
+                <div style="font-size: 30px; font-weight: 600; letter-spacing: -.02em">Atelier cadrage — pipeline v1</div>
+                <span style="font-size: 12.5px; color: var(--dim); border-bottom: 1px dashed var(--dim)">titre éditable</span>
+                <div style="margin-left: auto; display: flex; gap: 8px; font-size: 13.5px; color: var(--dim)">
+                  <span style="padding: 7px 12px; border-radius: 10px; border: 1px solid var(--border); background: var(--panel)">Exporter</span>
+                  <span style="padding: 7px 12px; border-radius: 10px; border: 1px solid var(--border); background: var(--panel)">Re-transcrire en large-v3</span>
+                </div>
+              </div>
+              <div style="display: flex; gap: 14px; margin-top: 8px; font-family: 'JetBrains Mono', monospace; font-size: 12.5px; color: var(--faint); align-items: center">
+                <span>12 août · 16:40</span><span>42:18</span><span>fr</span><span>turbo</span>
+                <span style="font-family: Figtree, sans-serif; font-size: 12px; padding: 3px 9px; border-radius: 999px; border: 1px solid var(--accent); color: var(--accent); background: var(--accentSoft)">client</span>
+                <span style="font-family: Figtree, sans-serif; font-size: 12px; padding: 3px 9px; border-radius: 999px; border: 1px solid var(--border); color: var(--dim)">interne</span>
+                <span style="margin-left: auto; font-family: Figtree, sans-serif; font-size: 12.5px; color: var(--warn)">Édité · revenir au verbatim</span>
+              </div>
+            </div>
+
+            <div style="background: var(--panelStrong); border: 1px solid var(--border); border-radius: 18px; backdrop-filter: blur(26px) saturate(1.4); padding: 14px 18px; box-shadow: 0 20px 44px -28px rgba(20,8,0,.75)">
+              <div style="display: flex; align-items: center; gap: 16px">
+                <div style="width: 40px; height: 40px; border-radius: 50%; background: var(--accent); color: var(--onAccent); display: flex; align-items: center; justify-content: center; font-size: 14px; box-shadow: 0 8px 22px -8px var(--accent)">❚❚</div>
+                <div style="flex: 1; display: flex; align-items: flex-end; gap: 2px; height: 46px">
+                  <sc-for list="{{ bars }}" as="b" hint-placeholder-count="90">
+                    <div style="flex: 1; border-radius: 2px; background: {{ b.color }}; height: {{ b.h }}"></div>
+                  </sc-for>
+                </div>
+                <div style="font-family: 'JetBrains Mono', monospace; font-size: 13px; color: var(--dim); min-width: 104px; text-align: right">08:14 / 42:18</div>
+                <div style="display: flex; gap: 8px; font-family: 'JetBrains Mono', monospace; font-size: 12.5px; color: var(--dim)">
+                  <span style="padding: 4px 8px; border-radius: 8px; border: 1px solid var(--border)">1.0×</span>
+                  <span style="padding: 4px 8px; border-radius: 8px; border: 1px solid var(--border)">♪</span>
+                </div>
+              </div>
+            </div>
+
+            <div style="display: flex; flex-direction: column; gap: 10px">
+              <div style="background: var(--panel); border: 1px solid var(--border); border-radius: 16px; backdrop-filter: blur(20px); padding: 15px 18px">
+                <div style="display: flex; align-items: center; gap: 10px">
+                  <span style="color: var(--dim); font-size: 12px">▾</span>
+                  <span style="font-size: 15px; font-weight: 600">Résumé</span>
+                  <span style="font-family: 'JetBrains Mono', monospace; font-size: 11px; padding: 2px 7px; border-radius: 6px; border: 1px solid var(--warnBorder); color: var(--warn)">OBSOLÈTE</span>
+                  <span style="margin-left: auto; font-size: 13px; color: var(--accent)">Régénérer</span>
+                  <span style="font-size: 13px; color: var(--dim)">Copier</span>
+                </div>
+                <div style="font-family: Newsreader, serif; font-size: 16.5px; line-height: 1.65; margin-top: 10px; text-wrap: pretty">L'atelier fixe le périmètre v1 : ingestion par ffmpeg, transcription en streaming, chaînage LLM automatique. Le point bloquant reste l'alignement mot à mot ; un repli au segment est accepté si le spike échoue. Décision : lever cette inconnue avant de dessiner l'éditeur.</div>
+                <div style="font-family: 'JetBrains Mono', monospace; font-size: 11.5px; color: var(--faint); margin-top: 10px">ollama · llama3.1:8b · généré le 12 août 16:44 · le verbatim a changé depuis</div>
+              </div>
+
+              <div style="background: var(--panel); border: 1px solid var(--border); border-radius: 16px; backdrop-filter: blur(20px); padding: 14px 18px; display: flex; align-items: center; gap: 10px">
+                <span style="color: var(--dim); font-size: 12px">▸</span>
+                <span style="font-size: 15px; font-weight: 600">Version nettoyée</span>
+                <span style="font-family: 'JetBrains Mono', monospace; font-size: 11.5px; color: var(--faint)">llama3.1:8b · 12 août 16:45</span>
+                <span style="margin-left: auto; font-size: 13px; color: var(--dim)">Déplier</span>
+              </div>
+
+              <div style="background: var(--panel); border: 1px solid var(--border); border-radius: 16px; backdrop-filter: blur(20px); padding: 14px 18px; display: flex; align-items: center; gap: 10px">
+                <span style="color: var(--dim); font-size: 12px">▸</span>
+                <span style="font-size: 15px; font-weight: 600; color: var(--dim)">Notes structurées</span>
+                <span style="font-size: 12.5px; color: var(--faint)">désactivé dans les réglages</span>
+                <span style="margin-left: auto; font-size: 13px; padding: 6px 12px; border-radius: 9px; border: 1px solid var(--accent); color: var(--accent); background: var(--accentSoft)">Générer</span>
+              </div>
+
+              <div style="background: var(--panel); border: 1px solid var(--errBorder); border-radius: 16px; backdrop-filter: blur(20px); padding: 14px 18px; display: flex; align-items: center; gap: 10px">
+                <span style="color: var(--err); font-size: 12px">▸</span>
+                <span style="font-size: 15px; font-weight: 600">Plan d'action <span style="color: var(--faint); font-weight: 400">prompt personnalisé</span></span>
+                <span style="font-size: 13px; color: var(--err)">Ollama injoignable sur localhost:11434</span>
+                <span style="margin-left: auto; font-size: 13px; color: var(--accent)">Réessayer</span>
+              </div>
+            </div>
+
+            <div style="display: flex; align-items: center; gap: 12px; margin-top: 6px">
+              <div style="font-size: 13px; letter-spacing: .16em; text-transform: uppercase; color: var(--dim)">Transcription</div>
+              <div style="flex: 1; height: 1px; background: var(--border)"></div>
+              <span style="font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--dim); padding: 4px 9px; border-radius: 8px; border: 1px solid var(--accent); color: var(--accent)">horodatages</span>
+              <span style="font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--dim); padding: 4px 9px; border-radius: 8px; border: 1px solid var(--border)">confiance</span>
+            </div>
+
+            <div style="display: flex; flex-direction: column; gap: 20px; font-family: Newsreader, serif; font-size: 19.5px; line-height: 1.78">
+              <div style="display: flex; gap: 20px">
+                <span style="font-family: 'JetBrains Mono', monospace; font-size: 12.5px; color: var(--faint); padding-top: 8px; min-width: 52px">07:52</span>
+                <div style="text-wrap: pretty; color: var(--dim)">On reprend là où on s'était arrêtés. Le décodage passe par ffmpeg, donc on accepte tout ce qui a une piste audio, y compris la vidéo.</div>
+              </div>
+              <div style="display: flex; gap: 20px">
+                <span style="font-family: 'JetBrains Mono', monospace; font-size: 12.5px; color: var(--accent); padding-top: 8px; min-width: 52px">08:11</span>
+                <div style="text-wrap: pretty">Le vrai sujet, c'est <span style="background: var(--accentSoft); box-shadow: inset 0 -2px 0 var(--accent); border-radius: 3px; padding: 1px 2px">l'alignement</span> mot à mot. Si le DTW ne sort pas d'horodatages exploitables, on retombe sur une synchronisation au segment — <span style="border-bottom: 2px dotted var(--warn)">moins agréable</span>, mais l'éditeur tient quand même.</div>
+              </div>
+              <div style="display: flex; gap: 20px">
+                <span style="font-family: 'JetBrains Mono', monospace; font-size: 12.5px; color: var(--faint); padding-top: 8px; min-width: 52px">08:39</span>
+                <div style="text-wrap: pretty; color: var(--dim)">Le verbatim reste immuable. Les corrections vivent dans une couche au-dessus, chaque mot garde son identifiant, et on peut revenir en arrière à tout moment.<span style="display: inline-block; margin-left: 8px; font-family: Figtree, sans-serif; font-size: 12px; color: var(--warn); border: 1px solid var(--warnBorder); border-radius: 6px; padding: 1px 7px; vertical-align: 3px">corrigé</span></div>
+              </div>
+              <div style="display: flex; gap: 20px">
+                <span style="font-family: 'JetBrains Mono', monospace; font-size: 12.5px; color: var(--faint); padding-top: 8px; min-width: 52px">09:04</span>
+                <div style="text-wrap: pretty; color: var(--dim)">Pour le vocabulaire, on injecte les noms propres et le jargon en amont. C'est gratuit et ça change tout sur les noms de clients.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 3 + 4 -->
+  <div style="display: flex; gap: 40px; flex-wrap: wrap">
+    <div style="display: flex; flex-direction: column; gap: 16px">
+      <div style="display: flex; align-items: baseline; gap: 14px">
+        <span style="font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--accent)">03</span>
+        <span style="font-size: 22px; font-weight: 600">Réglages</span>
+        <span style="font-size: 14px; color: var(--dim)">application immédiate</span>
+      </div>
+      <div data-screen-label="03 Réglages" style="width: 660px; height: 760px; border-radius: 22px; overflow: hidden; position: relative; background: var(--frame); box-shadow: 0 40px 90px -40px rgba(20,8,0,.8), 0 0 0 1px var(--border)">
+        <div style="position: absolute; inset: 0; background: var(--mesh); pointer-events: none"></div>
+        <div style="position: relative; height: 100%; display: flex; flex-direction: column; padding: 22px 26px; gap: 18px">
+          <div style="font-size: 24px; font-weight: 600; letter-spacing: -.02em">Réglages</div>
+          <div style="display: flex; gap: 8px; font-size: 13px; color: var(--dim)">
+            <span style="padding: 5px 11px; border-radius: 999px; background: var(--sel); color: var(--text)">Transcription</span>
+            <span style="padding: 5px 11px">Post-traitement</span>
+            <span style="padding: 5px 11px">Bibliothèque</span>
+            <span style="padding: 5px 11px">Système</span>
+          </div>
+          <div style="background: var(--panel); border: 1px solid var(--border); border-radius: 16px; backdrop-filter: blur(20px); padding: 4px 16px">
+            <sc-for list="{{ settings }}" as="s" hint-placeholder-count="6">
+              <div style="display: flex; align-items: center; gap: 16px; padding: 13px 0; border-bottom: 1px solid var(--hair)">
+                <div style="flex: 1">
+                  <div style="font-size: 14.5px; font-weight: 500">{{ s.label }}</div>
+                  <div style="font-size: 12.5px; color: var(--faint); margin-top: 2px">{{ s.hint }}</div>
+                </div>
+                <div style="font-family: 'JetBrains Mono', monospace; font-size: 12.5px; color: var(--accent); padding: 5px 11px; border-radius: 9px; border: 1px solid var(--border); background: var(--sunken)">{{ s.value }}</div>
+              </div>
+            </sc-for>
+          </div>
+          <div style="background: var(--panel); border: 1px solid var(--warnBorder); border-radius: 16px; backdrop-filter: blur(20px); padding: 14px 16px">
+            <div style="font-size: 14px; font-weight: 600; color: var(--warn)">Coexistence VRAM</div>
+            <div style="font-size: 13.5px; color: var(--dim); margin-top: 4px; text-wrap: pretty">Whisper turbo occupe ~2 Go et reste résident. Au-delà de 12 Go de modèle Ollama, la coexistence n'est plus garantie sur 16 Go.</div>
+          </div>
+          <div style="background: var(--panel); border: 1px solid var(--border); border-radius: 16px; backdrop-filter: blur(20px); padding: 14px 16px">
+            <div style="font-size: 14px; font-weight: 600; margin-bottom: 10px">Vocabulaire personnalisé</div>
+            <div style="display: flex; flex-wrap: wrap; gap: 6px">
+              <sc-for list="{{ vocab }}" as="v" hint-placeholder-count="6">
+                <span style="font-size: 12.5px; padding: 4px 10px; border-radius: 999px; border: 1px solid var(--border); color: var(--dim); background: var(--sunken)">{{ v }}</span>
+              </sc-for>
+              <span style="font-size: 12.5px; padding: 4px 10px; border-radius: 999px; border: 1px dashed var(--accent); color: var(--accent)">+ ajouter</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 16px">
+      <div style="display: flex; align-items: baseline; gap: 14px">
+        <span style="font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--accent)">04</span>
+        <span style="font-size: 22px; font-weight: 600">Enregistrement · Import URL</span>
+      </div>
+      <div data-screen-label="04 Modales" style="width: 620px; height: 760px; border-radius: 22px; overflow: hidden; position: relative; background: var(--frame); box-shadow: 0 40px 90px -40px rgba(20,8,0,.8), 0 0 0 1px var(--border); display: flex; flex-direction: column; justify-content: center; gap: 26px; padding: 30px">
+        <div style="position: absolute; inset: 0; background: var(--mesh); pointer-events: none"></div>
+
+        <div style="position: relative; background: var(--panelStrong); border: 1px solid var(--border); border-radius: 20px; backdrop-filter: blur(30px) saturate(1.4); padding: 24px; box-shadow: 0 30px 70px -34px rgba(20,8,0,.85)">
+          <div style="font-size: 18px; font-weight: 600">Enregistrement</div>
+          <div style="font-size: 13.5px; color: var(--dim); margin-top: 4px">Micro Yeti · entrée par défaut</div>
+          <div style="display: flex; align-items: flex-end; gap: 3px; height: 60px; margin: 20px 0 14px">
+            <sc-for list="{{ meter }}" as="m" hint-placeholder-count="40">
+              <div style="flex: 1; border-radius: 2px; background: {{ m.color }}; height: {{ m.h }}"></div>
+            </sc-for>
+          </div>
+          <div style="display: flex; align-items: center; gap: 14px">
+            <div style="width: 44px; height: 44px; border-radius: 50%; background: var(--err); box-shadow: 0 0 0 6px var(--errSoft)"></div>
+            <div style="font-family: 'JetBrains Mono', monospace; font-size: 24px; letter-spacing: .02em">04:37</div>
+            <div style="margin-left: auto; display: flex; gap: 8px; font-size: 13.5px">
+              <span style="padding: 8px 14px; border-radius: 10px; border: 1px solid var(--border); color: var(--dim)">Pause</span>
+              <span style="padding: 8px 14px; border-radius: 10px; background: var(--accent); color: var(--onAccent); font-weight: 600">Arrêter et transcrire</span>
+            </div>
+          </div>
+        </div>
+
+        <div style="position: relative; background: var(--panelStrong); border: 1px solid var(--border); border-radius: 20px; backdrop-filter: blur(30px) saturate(1.4); padding: 24px; box-shadow: 0 30px 70px -34px rgba(20,8,0,.85)">
+          <div style="font-size: 18px; font-weight: 600">Import par URL</div>
+          <div style="font-family: 'JetBrains Mono', monospace; font-size: 13px; color: var(--dim); margin-top: 12px; padding: 10px 12px; border-radius: 10px; background: var(--sunken); border: 1px solid var(--border); overflow: hidden; text-overflow: ellipsis; white-space: nowrap">https://exemple.com/podcast/ep-142</div>
+          <div style="display: flex; gap: 14px; margin-top: 16px; align-items: center">
+            <div style="width: 74px; height: 74px; border-radius: 12px; background: var(--sunken); border: 1px solid var(--border); display: flex; align-items: center; justify-content: center; font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--faint); text-align: center">vignette</div>
+            <div style="flex: 1">
+              <div style="font-size: 15px; font-weight: 600">Ép. 142 — Outils locaux et vie privée</div>
+              <div style="font-family: 'JetBrains Mono', monospace; font-size: 12.5px; color: var(--faint); margin-top: 5px">1:04:22 · 58 Mo · exemple.com</div>
+            </div>
+          </div>
+          <div style="display: flex; gap: 8px; justify-content: flex-end; margin-top: 18px; font-size: 13.5px">
+            <span style="padding: 8px 14px; border-radius: 10px; border: 1px solid var(--border); color: var(--dim)">Annuler</span>
+            <span style="padding: 8px 14px; border-radius: 10px; background: var(--accent); color: var(--onAccent); font-weight: 600">Télécharger et mettre en file</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 5 + 6 -->
+  <div style="display: flex; gap: 40px; flex-wrap: wrap">
+    <div style="display: flex; flex-direction: column; gap: 16px">
+      <div style="display: flex; align-items: baseline; gap: 14px">
+        <span style="font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--accent)">05</span>
+        <span style="font-size: 22px; font-weight: 600">Premier lancement</span>
+        <span style="font-size: 14px; color: var(--dim)">modèle absent · app utilisable pendant le téléchargement</span>
+      </div>
+      <div data-screen-label="05 Premier lancement" style="width: 660px; height: 500px; border-radius: 22px; overflow: hidden; position: relative; background: var(--frame); box-shadow: 0 40px 90px -40px rgba(20,8,0,.8), 0 0 0 1px var(--border); display: flex; align-items: center; justify-content: center; padding: 34px">
+        <div style="position: absolute; inset: 0; background: var(--mesh); pointer-events: none"></div>
+        <div style="position: relative; text-align: center; max-width: 440px">
+          <div style="width: 54px; height: 54px; border-radius: 18px; margin: 0 auto 18px; background: var(--accentSoft); border: 1px solid var(--accent); display: flex; align-items: center; justify-content: center; color: var(--accent); font-size: 22px">◐</div>
+          <div style="font-size: 22px; font-weight: 600; letter-spacing: -.02em">Téléchargement de large-v3-turbo</div>
+          <div style="font-size: 14.5px; color: var(--dim); margin-top: 8px; text-wrap: pretty">809 Mo, une seule fois. Vous pouvez déjà déposer des fichiers : ils attendront dans la file.</div>
+          <div style="height: 5px; border-radius: 999px; background: var(--sunken); margin: 22px 0 10px; overflow: hidden">
+            <div style="width: 38%; height: 100%; background: var(--accent)"></div>
+          </div>
+          <div style="display: flex; justify-content: space-between; font-family: 'JetBrains Mono', monospace; font-size: 12.5px; color: var(--faint)">
+            <span>307 / 809 Mo</span><span>18 Mo/s · 28 s</span>
+          </div>
+          <div style="margin-top: 22px; font-size: 13.5px; color: var(--dim)">Annuler</div>
+        </div>
+      </div>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 16px">
+      <div style="display: flex; align-items: baseline; gap: 14px">
+        <span style="font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--accent)">06</span>
+        <span style="font-size: 22px; font-weight: 600">États vides et erreurs</span>
+      </div>
+      <div data-screen-label="06 États" style="width: 620px; height: 500px; border-radius: 22px; overflow: hidden; position: relative; background: var(--frame); box-shadow: 0 40px 90px -40px rgba(20,8,0,.8), 0 0 0 1px var(--border); display: flex; flex-direction: column; gap: 14px; padding: 26px">
+        <div style="position: absolute; inset: 0; background: var(--mesh); pointer-events: none"></div>
+        <div style="position: relative; flex: 1; border: 1.5px dashed var(--dashed); border-radius: 18px; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 22px; background: var(--dropBg); backdrop-filter: blur(18px)">
+          <div style="font-size: 19px; font-weight: 600">Rien encore</div>
+          <div style="font-size: 14px; color: var(--dim); margin-top: 8px; max-width: 380px; text-wrap: pretty">Déposez un fichier, collez une URL, enregistrez-vous, ou faites un clic droit sur un fichier depuis l'Explorateur.</div>
+        </div>
+        <div style="position: relative; background: var(--panel); border: 1px solid var(--border); border-radius: 14px; backdrop-filter: blur(18px); padding: 14px 16px">
+          <div style="font-size: 14.5px; font-weight: 600">Aucun résultat pour « restitution »</div>
+          <div style="font-size: 13.5px; color: var(--dim); margin-top: 3px">Le filtre <span style="color: var(--accent)">client</span> est actif — <span style="border-bottom: 1px solid var(--dim)">chercher partout</span></div>
+        </div>
+        <div style="position: relative; background: var(--panel); border: 1px solid var(--errBorder); border-radius: 14px; backdrop-filter: blur(18px); padding: 14px 16px">
+          <div style="font-size: 14.5px; font-weight: 600; color: var(--err)">VRAM insuffisante</div>
+          <div style="font-size: 13.5px; color: var(--dim); margin-top: 3px; text-wrap: pretty">large-v3 n'a pas pu être chargé pendant qu'Ollama occupe 13 Go. Essayez turbo, ou déchargez le modèle LLM.</div>
+        </div>
+        <div style="position: relative; background: var(--panel); border: 1px solid var(--border); border-radius: 14px; backdrop-filter: blur(18px); padding: 14px 16px">
+          <div style="font-size: 14.5px; font-weight: 600">Doublon détecté</div>
+          <div style="font-size: 13.5px; color: var(--dim); margin-top: 3px">Ce fichier existe déjà — <span style="color: var(--accent)">ouvrir l'existante</span> ou <span style="color: var(--accent)">transcrire à nouveau</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+</div>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1500,&quot;height&quot;:1000},&quot;accent&quot;:{&quot;editor&quot;:&quot;color&quot;,&quot;default&quot;:&quot;#E08A4B&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;options&quot;:[&quot;#E08A4B&quot;,&quot;#D9694E&quot;,&quot;#C98A2E&quot;,&quot;#8E9A5B&quot;],&quot;section&quot;:&quot;Identité&quot;},&quot;theme&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;default&quot;:&quot;dark&quot;,&quot;options&quot;:[&quot;dark&quot;,&quot;light&quot;],&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Identité&quot;},&quot;glassBlur&quot;:{&quot;editor&quot;:&quot;range&quot;,&quot;default&quot;:22,&quot;min&quot;:0,&quot;max&quot;:40,&quot;step&quot;:2,&quot;unit&quot;:&quot;px&quot;,&quot;tsType&quot;:&quot;number&quot;,&quot;section&quot;:&quot;Verre&quot;}}">
+class Component extends DCLogic {
+  constructor(p) {
+    super(p);
+    this.state = { accent: null, theme: null };
+    this.wheelRef = React.createRef();
+  }
+
+  componentDidMount() { this.drawWheel(); }
+  componentDidUpdate() { this.drawWheel(); }
+
+  drawWheel() {
+    const c = this.wheelRef.current;
+    if (!c || c.dataset.drawn) return;
+    c.dataset.drawn = "1";
+    const ctx = c.getContext("2d");
+    const r = c.width / 2;
+    const img = ctx.createImageData(c.width, c.height);
+    for (let y = 0; y < c.height; y++) {
+      for (let x = 0; x < c.width; x++) {
+        const dx = x - r, dy = y - r;
+        const d = Math.sqrt(dx * dx + dy * dy);
+        const i = (y * c.width + x) * 4;
+        if (d > r) { img.data[i + 3] = 0; continue; }
+        let h = (Math.atan2(dy, dx) * 180 / Math.PI + 360) % 360;
+        const s = Math.min(1, d / r);
+        const [R, G, B] = this.hsl2rgb(h, 0.55 * s + 0.12, 0.60 - 0.06 * s);
+        img.data[i] = R; img.data[i + 1] = G; img.data[i + 2] = B;
+        img.data[i + 3] = d > r - 1.5 ? 255 * (r - d) / 1.5 : 255;
+      }
+    }
+    ctx.putImageData(img, 0, 0);
+  }
+
+  hsl2rgb(h, s, l) {
+    const k = n => (n + h / 30) % 12;
+    const a = s * Math.min(l, 1 - l);
+    const f = n => l - a * Math.max(-1, Math.min(k(n) - 3, Math.min(9 - k(n), 1)));
+    return [f(0), f(8), f(4)].map(v => Math.round(v * 255));
+  }
+
+  hex(rgb) { return "#" + rgb.map(v => v.toString(16).padStart(2, "0")).join("").toUpperCase(); }
+
+  onWheel = (e) => {
+    const c = this.wheelRef.current;
+    const b = c.getBoundingClientRect();
+    const x = (e.clientX - b.left) / b.width * c.width;
+    const y = (e.clientY - b.top) / b.height * c.height;
+    const r = c.width / 2, dx = x - r, dy = y - r;
+    const d = Math.sqrt(dx * dx + dy * dy);
+    if (d > r) return;
+    const h = (Math.atan2(dy, dx) * 180 / Math.PI + 360) % 360;
+    const s = Math.min(1, d / r);
+    this.setState({ accent: this.hex(this.hsl2rgb(h, 0.55 * s + 0.12, 0.60 - 0.06 * s)) });
+  };
+
+  mix(hex, alpha) {
+    const n = parseInt(hex.slice(1), 16);
+    return `rgba(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}, ${alpha})`;
+  }
+
+  lum(hex) {
+    const n = parseInt(hex.slice(1), 16);
+    return (0.299 * ((n >> 16) & 255) + 0.587 * ((n >> 8) & 255) + 0.114 * (n & 255)) / 255;
+  }
+
+  renderVals() {
+    const accent = this.state.accent ?? this.props.accent ?? "#E08A4B";
+    const theme = this.state.theme ?? this.props.theme ?? "dark";
+    const dark = theme === "dark";
+    const blur = this.props.glassBlur ?? 22;
+
+    const t = dark ? {
+      page: "#120C08", frame: "#1A120C", text: "#F7EEE5",
+      dim: "rgba(247,238,229,.62)", faint: "rgba(247,238,229,.40)",
+      panel: "rgba(255,240,226,.055)", panelStrong: "rgba(255,240,226,.09)",
+      border: "rgba(255,232,210,.13)", hair: "rgba(255,232,210,.08)",
+      sunken: "rgba(0,0,0,.24)", sel: "rgba(255,240,226,.10)",
+      dashed: this.mix(accent, .38), dropBg: "rgba(255,240,226,.035)",
+      warn: "#E8B15C", warnBorder: "rgba(232,177,92,.42)",
+      err: "#E58367", errBorder: "rgba(229,131,103,.42)", errSoft: "rgba(229,131,103,.16)",
+      ok: "#93C79A"
+    } : {
+      page: "#F4EAE0", frame: "#FBF4EC", text: "#241811",
+      dim: "rgba(36,24,17,.62)", faint: "rgba(36,24,17,.42)",
+      panel: "rgba(255,252,248,.62)", panelStrong: "rgba(255,252,248,.82)",
+      border: "rgba(90,55,30,.14)", hair: "rgba(90,55,30,.09)",
+      sunken: "rgba(90,55,30,.06)", sel: "rgba(90,55,30,.08)",
+      dashed: this.mix(accent, .45), dropBg: "rgba(255,252,248,.5)",
+      warn: "#9A6512", warnBorder: "rgba(154,101,18,.35)",
+      err: "#B4472A", errBorder: "rgba(180,71,42,.35)", errSoft: "rgba(180,71,42,.14)",
+      ok: "#3F7A49"
+    };
+
+    const mesh = dark
+      ? `radial-gradient(900px 520px at 12% -8%, ${this.mix(accent, .20)}, transparent 68%), radial-gradient(760px 500px at 96% 6%, rgba(120,70,40,.22), transparent 70%), radial-gradient(700px 600px at 60% 110%, ${this.mix(accent, .10)}, transparent 72%)`
+      : `radial-gradient(900px 520px at 10% -10%, ${this.mix(accent, .26)}, transparent 66%), radial-gradient(760px 520px at 98% 4%, rgba(230,190,150,.45), transparent 70%), radial-gradient(700px 600px at 55% 112%, ${this.mix(accent, .14)}, transparent 72%)`;
+
+    const vars = [
+      `--accent: ${accent}`,
+      `--accentSoft: ${this.mix(accent, dark ? .16 : .18)}`,
+      `--onAccent: ${this.lum(accent) > 0.62 ? "#241811" : "#FFF8F1"}`,
+      `--blur: ${blur}px`,
+      `--page: ${t.page}`, `--frame: ${t.frame}`, `--text: ${t.text}`,
+      `--dim: ${t.dim}`, `--faint: ${t.faint}`,
+      `--panel: ${t.panel}`, `--panelStrong: ${t.panelStrong}`,
+      `--border: ${t.border}`, `--hair: ${t.hair}`, `--sunken: ${t.sunken}`,
+      `--sel: ${t.sel}`, `--dashed: ${t.dashed}`, `--dropBg: ${t.dropBg}`,
+      `--warn: ${t.warn}`, `--warnBorder: ${t.warnBorder}`,
+      `--err: ${t.err}`, `--errBorder: ${t.errBorder}`, `--errSoft: ${t.errSoft}`,
+      `--ok: ${t.ok}`, `--mesh: ${mesh}`,
+      `--darkBtn: ${dark ? t.sel : "transparent"}`,
+      `--lightBtn: ${dark ? "transparent" : t.sel}`
+    ].join("; ");
+
+    const presetHexes = ["#E08A4B", "#D9694E", "#C98A2E", "#B9755F", "#8E9A5B"];
+    const presets = presetHexes.map(h => ({
+      pick: () => this.setState({ accent: h }),
+      style: { background: h }
+    }));
+    // swatch color must be inline-visible: expose per-item var
+    presets.forEach(p => { p.sw = p.style.background; });
+
+    const seed = [12, 30, 55, 78, 62, 40, 88, 70, 35, 22, 48, 66, 92, 74, 50, 28, 18, 44, 60, 84];
+    const bars = Array.from({ length: 96 }, (_, i) => {
+      const h = seed[(i * 7 + (i % 5)) % seed.length] * (0.55 + 0.45 * Math.abs(Math.sin(i * 0.7)));
+      return {
+        h: Math.max(8, Math.min(100, h)) + "%",
+        color: i < 19 ? accent : this.mix(dark ? "#FFF0E2" : "#3A2617", 0.22)
+      };
+    });
+
+    const meter = Array.from({ length: 44 }, (_, i) => {
+      const v = Math.abs(Math.sin(i * 0.9)) * 70 + (i % 3) * 8 + 10;
+      return { h: Math.min(100, v) + "%", color: i < 30 ? this.mix(accent, .75) : this.mix(accent, .22) };
+    });
+
+    return {
+      vars, accent, presets, bars, meter,
+      onWheel: this.onWheel,
+      wheelRef: this.wheelRef,
+      setDark: () => this.setState({ theme: "dark" }),
+      setLight: () => this.setState({ theme: "light" }),
+      cards: [
+        { title: "Atelier cadrage — pipeline v1", summary: "Périmètre v1 arrêté ; l'alignement mot à mot reste l'inconnue à lever avant l'éditeur.", date: "12 août · 16:40", dur: "42:18", lang: "fr", model: "turbo", tags: ["client", "interne"] },
+        { title: "Mémo — reprise des relances", summary: "Trois relances à programmer, priorité au dossier Marchand avant vendredi.", date: "11 août · 08:03", dur: "04:12", lang: "fr", model: "turbo", tags: ["mémo"] },
+        { title: "Call with Dana — pricing", summary: "Tiered pricing agreed in principle; she'll send the deck Monday.", date: "9 août · 18:22", dur: "27:05", lang: "en", model: "large-v3", tags: ["client"] },
+        { title: "Notes de lecture — VAD et hallucinations", summary: "Le VAD Silero coupe les silences et réduit nettement les segments inventés.", date: "7 août · 21:47", dur: "11:36", lang: "fr", model: "turbo", tags: ["idées"] }
+      ],
+      settings: [
+        { label: "Modèle", hint: "turbo tient en 2 Go et reste résident", value: "large-v3-turbo" },
+        { label: "Langue", hint: "forçable par transcription", value: "auto-détection" },
+        { label: "VAD Silero", hint: "coupe les silences, limite les hallucinations", value: "activé" },
+        { label: "Horodatages", hint: "défaut des nouvelles transcriptions", value: "activés" },
+        { label: "Post-traitement", hint: "nettoyage puis résumé, séquentiel", value: "automatique" },
+        { label: "Fournisseur LLM", hint: "localhost:11434", value: "ollama · llama3.1:8b" }
+      ],
+      vocab: ["Marchand", "whisper.cpp", "Tauri", "MANTARA", "Sillage", "push-to-talk", "GGML"]
+    };
+  }
+}
+</script>
+</body>
+</html>

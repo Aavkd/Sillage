@@ -1,0 +1,51 @@
+# Rust / Tauri
+/target/
+/src-tauri/target/
+/src-tauri/gen/
+
+# Node
+node_modules/
+dist/
+.vite/
+*.tsbuildinfo
+
+# Modèles Whisper — trop volumineux, téléchargés au premier lancement
+models/
+*.bin
+*.gguf
+
+# Bibliothèque locale — données utilisateur
+library/
+*.db
+*.db-shm
+*.db-wal
+*.peaks
+
+# Binaires embarqués — récupérés par le script de setup
+src-tauri/resources/ffmpeg.exe
+src-tauri/resources/ffprobe.exe
+src-tauri/resources/yt-dlp.exe
+
+# Secrets
+.env
+.env.local
+*.key
+
+# Médias de test
+*.m4a
+*.mp3
+*.wav
+*.mp4
+*.mkv
+*.mov
+!tests/fixtures/**
+
+# Système
+Thumbs.db
+desktop.ini
+.DS_Store
+
+# Local
+.claude/settings.local.json
+logs/
+*.log
