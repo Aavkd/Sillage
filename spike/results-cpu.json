@@ -1,0 +1,117 @@
+{
+  "model": "D:/Documents/MANTARA/AI COMPAGNON APP/models/whisper/ggml-large-v3-turbo.bin",
+  "audio": "fixtures/speech-fr.wav",
+  "backend": "cpu",
+  "language": "fr",
+  "vad": false,
+  "audio_ms": 10794,
+  "transcribe_ms": 193308,
+  "realtime_factor": 0.05583835123223043,
+  "segment_count": 1,
+  "word_count": 13,
+  "dtw_coverage": 1.0,
+  "monotonic": true,
+  "within_segment_bounds": true,
+  "segments": [
+    {
+      "index": 0,
+      "start_ms": 0,
+      "end_ms": 9800,
+      "text": "Ok, j'ai l'impression que pour l'instant tout fonctionne, sinon, eh bien, fais-le-moi savoir.",
+      "no_speech_prob": 0.000019272626,
+      "words": [
+        {
+          "text": "Ok,",
+          "start_ms": 1860,
+          "end_ms": 2560,
+          "prob": 0.57054645,
+          "dtw": true
+        },
+        {
+          "text": "j'ai",
+          "start_ms": 2700,
+          "end_ms": 2740,
+          "prob": 0.99304503,
+          "dtw": true
+        },
+        {
+          "text": "l'impression",
+          "start_ms": 2820,
+          "end_ms": 3140,
+          "prob": 0.99967456,
+          "dtw": true
+        },
+        {
+          "text": "que",
+          "start_ms": 3460,
+          "end_ms": 3780,
+          "prob": 0.9891606,
+          "dtw": true
+        },
+        {
+          "text": "pour",
+          "start_ms": 3780,
+          "end_ms": 3840,
+          "prob": 0.9536863,
+          "dtw": true
+        },
+        {
+          "text": "l'instant",
+          "start_ms": 3840,
+          "end_ms": 4060,
+          "prob": 0.9646643,
+          "dtw": true
+        },
+        {
+          "text": "tout",
+          "start_ms": 4380,
+          "end_ms": 4940,
+          "prob": 0.86051625,
+          "dtw": true
+        },
+        {
+          "text": "fonctionne,",
+          "start_ms": 4940,
+          "end_ms": 5960,
+          "prob": 0.7471613,
+          "dtw": true
+        },
+        {
+          "text": "sinon,",
+          "start_ms": 6380,
+          "end_ms": 6940,
+          "prob": 0.82940066,
+          "dtw": true
+        },
+        {
+          "text": "eh",
+          "start_ms": 7420,
+          "end_ms": 7700,
+          "prob": 0.7453222,
+          "dtw": true
+        },
+        {
+          "text": "bien,",
+          "start_ms": 7700,
+          "end_ms": 8900,
+          "prob": 0.97112256,
+          "dtw": true
+        },
+        {
+          "text": "fais-le-moi",
+          "start_ms": 9120,
+          "end_ms": 9400,
+          "prob": 0.88242066,
+          "dtw": true
+        },
+        {
+          "text": "savoir.",
+          "start_ms": 9700,
+          "end_ms": 9800,
+          "prob": 0.8090464,
+          "dtw": true
+        }
+      ]
+    }
+  ]
+}

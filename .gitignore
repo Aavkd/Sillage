@@ -1,6 +1,5 @@
 # Rust / Tauri
-/target/
-/src-tauri/target/
+target/
 /src-tauri/gen/
 
 # Node
@@ -49,3 +48,6 @@ desktop.ini
 .claude/settings.local.json
 logs/
 *.log
+
+# Build dependency: libclang.dll for bindgen (see spike/README.md)
+.venv-libclang/

@@ -158,19 +158,40 @@ ordinaires. Si `whisper-rs` n'expose pas le DTW de façon exploitable, le repli 
 synchronisation **au segment** — fonctionnelle mais nettement moins agréable, et qui change
 la conception des phases 06 et 07. Il faut le savoir maintenant.
 
-**État constaté de la machine le 13/08/2026** — à revérifier :
+**État constaté de la machine le 13/08/2026** :
 | Outil | Version | Verdict |
 |---|---|---|
-| Rust / Cargo | 1.90.0 | OK |
-| CMake | 4.1.0 | OK, surveiller les `cmake_minimum_required` anciens de ggml |
+| Rust / Cargo | 1.90.0 (`x86_64-pc-windows-msvc`) | OK |
+| Visual Studio | 2022 Community | OK |
+| CMake | 4.1.0 | OK |
 | ffmpeg | 7.1 (PATH) | OK, mais l'app embarquera son propre binaire |
 | Ollama | 0.32.9 | OK |
 | Pilote NVIDIA | 580.97 | OK (supporte CUDA 13) |
 | **CUDA Toolkit** | **11.0** | **BLOQUANT** |
+| **libclang** | **absent** | **BLOQUANT** |
 
-**CUDA 11.0 est antérieur à l'architecture Ada et ne peut pas cibler `sm_89`.**
-Le build CUDA de whisper.cpp échouera. Installer le **CUDA Toolkit 12.4 ou ultérieur**
-est la toute première tâche.
+**CUDA 11.0 ne peut pas cibler `sm_89`** — vérifié :
+`nvcc fatal : Value 'sm_89' is not defined for option 'gpu-architecture'`.
+Le dossier `v11.8` présent sur la machine est **vide** : ce n'est pas un toolkit.
+Installer le **CUDA Toolkit 12.4+** (composants seuls, **sans le pilote** : celui de la
+machine est plus récent), puis faire pointer `CUDA_PATH` dessus — `build.rs` le lit
+directement pour trouver `lib/x64`.
+
+**libclang est obligatoire** : bindgen en a besoin, et `WHISPER_DONT_GENERATE_BINDINGS`
+n'est pas une échappatoire sur Windows (le `bindings.rs` fourni est généré sous Linux et
+casse les assertions de layout MSVC). Le spike l'obtient via `spike/.venv-libclang`.
+
+**Résultat du spike — voir `spike/RESULTS.md`** :
+- **GO** sur les horodatages mot à mot. `DtwModelPreset::LargeV3Turbo` existe, couverture
+  DTW **100 %**, monotone, dans les bornes. Le repli au segment est écarté.
+- **Conflit découvert** : whisper.cpp 1.8.3 neutralise le callback de streaming dès que le
+  DTW est actif. Mesuré : DTW activé → **0** callback ; DTW désactivé → 1 callback mais
+  **0 %** de couverture DTW. Les deux fonctionnalités s'excluaient.
+- **Décision de l'utilisateur** : vendoriser un fork corrigé plutôt que découper l'audio
+  nous-mêmes. Voir [vendor/PATCHES.md](vendor/PATCHES.md), PATCH 001. Après correctif :
+  streaming **et** couverture DTW 100 % simultanément.
+- `t_dtw` est un **point d'ancrage par token**, pas un intervalle. Les intervalles de mots
+  se dérivent (un mot finit là où le suivant commence). Conséquence directe pour la phase 06.
 
 **Tâches**
 1. Installer CUDA Toolkit ≥ 12.4 ; vérifier `nvcc --version` et une compilation triviale `sm_89`.
@@ -185,16 +206,21 @@ est la toute première tâche.
    l'arbre de développement**, pour prouver que les DLL cuBLAS/cudart suivent.
 
 **Critères d'acceptation**
+- [x] Le JSON contient des horodatages **par mot**, monotones, dans les bornes du segment
+      — couverture DTW 100 % sur `fixtures/speech-fr.wav`
+- [x] Les intervalles de mots sont non dégénérés (aucun `end_ms <= start_ms`)
+- [x] **PATCH 001** : streaming **et** couverture DTW 100 % sur un fichier mono-bloc
+- [ ] **PATCH 001 sur un fichier multi-bloc** (> 30 s) : le callback part **plus d'une fois**,
+      couverture DTW toujours à 100 % — le second défaut de la boucle amont ne se manifeste
+      qu'à partir du deuxième bloc, un test mono-bloc ne le détecte pas
 - [ ] `nvcc` ≥ 12.4 et compilation `sm_89` réussie
-- [ ] Le JSON contient des horodatages **par mot**, monotones, dans les bornes du segment
-- [ ] Sur 20 mots vérifiés manuellement, l'écart est **< 200 ms** — ou l'écart réel est mesuré
-      et consigné
-- [ ] Temps et VRAM consignés dans `spike/RESULTS.md`
+- [ ] Alignement vérifié objectivement : sur `fixtures/vad-test.wav`, **aucun mot** ne tombe
+      dans les plages de silence connues (0–15 s, 25,8–40,8 s, 51,6–66,6 s)
+- [ ] Temps et VRAM consignés dans `spike/RESULTS.md`, sur un fichier français d'environ 15 min
 - [ ] Le VAD s'active et réduit le nombre de segments sur l'audio silencieux
 - [ ] L'app Tauri de test transcrit depuis un dossier d'installation, machine sans variables
       d'environnement de développement
-- [ ] **Décision GO / REPLI consignée dans `spike/RESULTS.md`** et **remontée à l'utilisateur
-      avant la phase 01**
+- [x] **Décision GO / REPLI remontée à l'utilisateur** — GO, repli au segment écarté
 
 > **Point d'arrêt.** Si le DTW est inexploitable, ne pas continuer seul : présenter le repli
 > au segment à l'utilisateur et attendre sa décision. C'est la seule phase qui bloque.

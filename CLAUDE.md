@@ -65,7 +65,29 @@ Ne jamais committer : `models/`, `library/`, `.env`, binaires ffmpeg/yt-dlp, art
 
 ---
 
-## Prérequis machine
+## Prérequis de build
 
-CUDA Toolkit **≥ 12.4** obligatoire. La machine avait 11.0 au 13/08/2026, ce qui **ne peut pas**
-cibler `sm_89` (Ada) — c'est la première tâche de la phase 00.
+Constatés en phase 00, sur la machine, le 13/08/2026. Aucun n'est optionnel.
+
+1. **CUDA Toolkit ≥ 12.4.** La machine n'avait qu'un toolkit complet en **11.0**, qui rejette
+   `sm_89` (Ada) — vérifié : `nvcc fatal : Value 'sm_89' is not defined`. Le dossier `v11.8`
+   existe mais est **vide** (ni compilateur, ni bibliothèques) : ce n'est pas un toolkit.
+2. **`CUDA_PATH` doit pointer vers le toolkit 12.x.** `vendor/whisper-rs-sys/build.rs` le lit
+   directement pour trouver `lib/x64` ; s'il pointe encore vers v11.0, le build CUDA vise le
+   mauvais toolkit sans prévenir.
+3. **`libclang.dll` obligatoire**, avec `LIBCLANG_PATH` positionné. bindgen en a besoin, et
+   `WHISPER_DONT_GENERATE_BINDINGS` **n'est pas une échappatoire sur Windows** : le
+   `bindings.rs` fourni par whisper-rs-sys 0.15.0 est généré sous Linux (types `_G_fpos_t`,
+   `_IO_FILE`) et casse les assertions de layout MSVC. Le spike l'obtient via un venv
+   contenu (`spike/.venv-libclang`, paquet PyPI `libclang`), pour ne pas imposer LLVM
+   à l'échelle du système.
+
+## Dépendance vendorisée
+
+`vendor/whisper-rs-sys` est une copie patchée de whisper-rs-sys 0.15.0 (whisper.cpp 1.8.3),
+branchée par `[patch.crates-io]`. Elle porte **PATCH 001**, sans lequel le streaming et les
+horodatages mot à mot s'excluent mutuellement.
+
+**Lire [vendor/PATCHES.md](vendor/PATCHES.md) avant toute montée de version de `whisper-rs`
+ou `whisper-rs-sys`.** PATCH 001 est silencieux en cas de régression : le streaming cesse
+simplement de fonctionner, sans erreur ni avertissement.
