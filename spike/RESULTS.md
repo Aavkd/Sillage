@@ -160,16 +160,44 @@ grep -c "SILLAGE PATCH 001" spike/target/release/build/whisper-rs-sys-*/out/whis
 
 ---
 
-## 6. Ce qui reste ouvert
+## 6. Mesures GPU
 
-| Point | État | Bloqué par |
-|---|---|---|
-| Build CUDA, `sm_89` | non fait | CUDA Toolkit 12.x |
-| Temps et VRAM sur ~15 min de français | non fait | CUDA + un fichier de test |
-| VAD Silero vérifié | non fait | téléchargement du modèle (~2 Mo) |
-| Empaquetage Tauri hors arbre de dev | non fait | CUDA |
+Matériel : RTX 4090 Laptop (16 Go), CUDA 12.9.41, `sm_89`, `large-v3-turbo`, DTW actif.
+Fichier : 12 min 06 s de français réel (mp3 320 kb/s stéréo 44,1 kHz, vidéo YouTube).
 
-**Les temps CPU mesurés ici n'ont aucune valeur prédictive** : ≈ 0,04× temps réel, sans
-BLAS, sur un modèle de 1,6 Go. Ils ne servent qu'à établir la correction fonctionnelle.
-Le second risque de la phase 00 — l'empaquetage des DLL CUDA par Tauri — reste entier et
-est **indépendant** de celui qui vient d'être levé.
+| Mesure | Valeur |
+|---|---|
+| Vitesse | **12,1× temps réel** (60,1 s pour 726,2 s) — 11,6× à la première passe |
+| VRAM (delta) | **2 353 Mo** (plateau 5 058 → 7 411 Mo) |
+| Mots | 2 815, **couverture DTW 100 %**, monotones |
+| Segments | 612 |
+| Callbacks de streaming | **612** — PATCH 001 tient à l'échelle |
+| Build CUDA | 12 min 09 s, binaire 48,5 Mo (contre 3 Mo en CPU) |
+
+**Extrapolation** : un mémo de 15 min ≈ **75 s**. Un enregistrement de 2 h ≈ **10 min**.
+
+Les 2,35 Go mesurés confirment l'hypothèse d'ordonnancement de CONCEPTION §3.3 : Whisper
+turbo peut rester résident en laissant ~13 Go à Ollama.
+
+> Le décodage a été validé au passage : `audio_ms` mesuré à 726 151 ms contre 726,15 s
+> annoncés par ffprobe. Le premier fichier stéréo 44,1 kHz non-WAV du spike est donc
+> correctement ramené en mono 16 kHz.
+
+**Mesure de VRAM** : `nvidia-smi --query-compute-apps` ne renvoie rien sous Windows (WDDM).
+Il faut passer par `--query-gpu=memory.used` et soustraire une ligne de base — sinon on
+lit 0 Mo et on croit à tort n'avoir rien mesuré.
+
+**Les temps CPU relevés ailleurs dans ce document n'ont aucune valeur prédictive**
+(≈ 0,04× temps réel, sans BLAS) : ils n'établissent que la correction fonctionnelle.
+
+## 7. Ce qui reste ouvert
+
+| Point | État |
+|---|---|
+| Empaquetage Tauri hors arbre de dev | **non fait** — second risque de la phase, indépendant |
+
+Sur Windows, **deux** variables d'environnement sont nécessaires et lues par des
+consommateurs différents : `build.rs` lit `CUDA_PATH` pour trouver `lib/x64` à l'édition
+de liens, tandis que `CUDA <version>.targets` de MSBuild lit `CUDA_PATH_V12_9` pour
+localiser le toolkit. N'en définir qu'une donne un échec de compilation en 2 s :
+`The CUDA Toolkit v12.9 directory '' does not exist`.
