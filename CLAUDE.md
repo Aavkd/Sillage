@@ -69,9 +69,17 @@ Ne jamais committer : `models/`, `library/`, `.env`, binaires ffmpeg/yt-dlp, art
 
 Constatés en phase 00, sur la machine, le 13/08/2026. Aucun n'est optionnel.
 
-1. **CUDA Toolkit ≥ 12.4.** La machine n'avait qu'un toolkit complet en **11.0**, qui rejette
-   `sm_89` (Ada) — vérifié : `nvcc fatal : Value 'sm_89' is not defined`. Le dossier `v11.8`
-   existe mais est **vide** (ni compilateur, ni bibliothèques) : ce n'est pas un toolkit.
+1. **CUDA Toolkit compatible avec le MSVC installé.** Deux contraintes indépendantes :
+   - **Architecture** : le toolkit doit cibler `sm_89` (Ada). CUDA 11.0 ne le peut pas
+     (`nvcc fatal : Value 'sm_89' is not defined`) ; c'est acquis depuis 11.8.
+   - **Compilateur hôte** : `crt/host_config.h` du toolkit refuse tout MSVC hors de sa
+     fenêtre. **CUDA 12.0 rejette `_MSC_VER >= 1940`** ; or la machine porte MSVC 14.41
+     (1941) et 14.44 (1944). Le build échoue en 3 s sur `CMakeCUDACompilerId.cu`.
+   → **Exiger un toolkit supportant `_MSC_VER` 1944 : CUDA 12.9 ou 13.x.**
+     Vérifier avant d'installer :
+     `grep _MSC_VER "<CUDA>/include/crt/host_config.h"`.
+
+   Le dossier `v11.8` présent sur la machine est **vide** : ce n'est pas un toolkit.
 2. **`CUDA_PATH` doit pointer vers le toolkit 12.x.** `vendor/whisper-rs-sys/build.rs` le lit
    directement pour trouver `lib/x64` ; s'il pointe encore vers v11.0, le build CUDA vise le
    mauvais toolkit sans prévenir.

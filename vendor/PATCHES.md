@@ -86,3 +86,80 @@ le correctif a été perdu.
 
 > Vérifier aussi sur un fichier de **plus de 30 s** : le second défaut (borne de boucle)
 > ne se manifeste qu'à partir du deuxième bloc. `fixtures/vad-test.wav` (66,6 s) convient.
+
+---
+
+## PATCH 002 — VAD dans le chemin `with_state` — **ANNULÉ, NE PAS REFAIRE**
+
+**Statut** : tenté le 13/08/2026, **annulé le jour même**. Le code est revenu à l'amont.
+
+### Ce qui était visé
+
+whisper.cpp n'implémente le VAD que dans `whisper_full()`, qui délègue ensuite à
+`whisper_full_with_state()`. whisper-rs n'appelle **que** la seconde : le drapeau `vad`
+est accepté et **silencieusement ignoré**. Le correctif déplaçait le bloc VAD vers
+`whisper_full_with_state()`.
+
+### Pourquoi il a échoué
+
+**Segmentation fault systématique**, avec *et* sans DTW.
+
+whisper-rs construit son contexte via `whisper_init_from_file_with_params_no_state` :
+**`ctx->state` est nul**. Le chemin VAD de whisper.cpp n'existe que dans `whisper_full()`,
+qui n'est jamais appelé qu'avec l'état porté par le contexte — il suppose donc `ctx->state`
+valide. Déplacer ce code dans le chemin à état explicite casse cette hypothèse.
+
+Le VAD lui-même fonctionne parfaitement : Silero a détecté la parole à 16,58–24,83 s et
+42,40–50,62 s sur `fixtures/vad-test.wav`, dont les plages réelles sont 15,00–25,79 s et
+40,79–51,58 s. Le modèle n'est pas en cause, seul l'endroit où on l'appelle l'est.
+
+### Décision retenue
+
+**Faire le VAD côté Rust**, via l'API déjà exportée par whisper-rs (`pub use whisper_vad::*`) :
+détecter les plages de parole, transcrire chacune avec un décalage connu, et maîtriser
+nous-mêmes le calcul des horodatages. Aucun correctif amont, et cela rejoint le découpage
+en blocs que CONCEPTION §8 impose déjà pour les fichiers de plus de 2 h.
+
+> **Ne pas retenter ce correctif** sans avoir d'abord résolu la nullité de `ctx->state`.
+> Il compile sans avertissement et plante à l'exécution.
+
+---
+
+## PATCH 003 — Le fork ne se recompilait pas
+
+**Fichier** : `build.rs`
+**État amont** : non signalé au 13/08/2026
+**Sans ce correctif, tous les autres correctifs sont inopérants.**
+
+### Le défaut, en deux moitiés indépendantes
+
+1. `build.rs` ne déclarait que `cargo:rerun-if-changed=wrapper.h`. Cargo n'honorant **que**
+   les chemins déclarés dès lors qu'il y en a, toute modification du C++ vendorisé
+   **ne relançait pas** le script de build.
+2. Même relancé, le script ne copiait les sources dans `OUT_DIR` que **si le dossier
+   n'existait pas**, et cmake compile depuis cette copie. Une modification du fork
+   n'atteignait donc jamais le compilateur.
+
+Résultat : `cargo build` réussissait, l'ancienne bibliothèque était réutilisée telle quelle,
+et le correctif semblait « ne rien faire ». C'est ce qui a invalidé PATCH 002 pendant
+plusieurs cycles de test avant d'être repéré.
+
+PATCH 001 n'a fonctionné que par chance : il était en place lors de la **toute première**
+compilation du paquet vendorisé.
+
+### Le correctif
+
+- Déclarer `rerun-if-changed` sur `whisper.cpp/src`, `whisper.cpp/include`,
+  `whisper.cpp/ggml/src`, `whisper.cpp/ggml/include`.
+- Copier systématiquement les sources dans `OUT_DIR` (`CopyOptions { overwrite: true }`)
+  au lieu de ne le faire qu'à la création du dossier.
+
+### Vérification — à faire avant de croire tout résultat de test
+
+```bash
+grep -c "SILLAGE PATCH 001" spike/target/release/build/whisper-rs-sys-*/out/whisper.cpp/src/whisper.cpp
+```
+
+Un `0` signifie que la copie de build est périmée : **le binaire testé ne contient pas les
+correctifs**, quel que soit le code de retour de `cargo build`. En cas de doute :
+`rm -rf spike/target/release/build/whisper-rs-sys-*`.

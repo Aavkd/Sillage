@@ -262,7 +262,11 @@ fn main() -> Result<()> {
     let vad_path_str;
     if let Some(vad) = &args.vad {
         vad_path_str = vad.to_str().context("vad path is not valid UTF-8")?.to_string();
+        // Two calls are required, in this order. set_vad_model_path only stores the path;
+        // without enable_vad the VAD flag stays false and VAD is silently inactive — the
+        // only symptom being hallucinated segments on silence.
         params.set_vad_model_path(Some(&vad_path_str));
+        params.enable_vad(true);
         println!("vad            : {}", vad.display());
     }
 

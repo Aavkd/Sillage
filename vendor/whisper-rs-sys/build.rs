@@ -101,20 +101,36 @@ fn main() {
     }
 
     println!("cargo:rerun-if-changed=wrapper.h");
+    // SILLAGE PATCH 003 — see vendor/PATCHES.md
+    // Upstream declares only wrapper.h. Because cargo honours *only* the declared paths
+    // once any are emitted, edits to the vendored C++ never re-run this script: a patch to
+    // whisper.cpp "builds successfully" while the previously compiled library is relinked
+    // unchanged. That silently voided PATCH 002 until it was caught. Watch what we patch.
+    println!("cargo:rerun-if-changed=whisper.cpp/src");
+    println!("cargo:rerun-if-changed=whisper.cpp/include");
+    println!("cargo:rerun-if-changed=whisper.cpp/ggml/src");
+    println!("cargo:rerun-if-changed=whisper.cpp/ggml/include");
 
     let out = PathBuf::from(env::var("OUT_DIR").unwrap());
     let whisper_root = out.join("whisper.cpp");
 
-    if !whisper_root.exists() {
-        std::fs::create_dir_all(&whisper_root).unwrap();
-        fs_extra::dir::copy("./whisper.cpp", &out, &Default::default()).unwrap_or_else(|e| {
-            panic!(
-                "Failed to copy whisper sources into {}: {}",
-                whisper_root.display(),
-                e
-            )
-        });
-    }
+    // SILLAGE PATCH 003 (part 2) — see vendor/PATCHES.md
+    // Upstream copies the C++ into OUT_DIR only when that directory is absent, and cmake
+    // builds from the copy. Any later edit to the vendored sources is therefore never
+    // compiled: the build succeeds and silently relinks the old library. This voided
+    // PATCH 002 until it was caught. Always refresh the copy instead.
+    std::fs::create_dir_all(&whisper_root).unwrap();
+    let copy_options = fs_extra::dir::CopyOptions {
+        overwrite: true,
+        ..Default::default()
+    };
+    fs_extra::dir::copy("./whisper.cpp", &out, &copy_options).unwrap_or_else(|e| {
+        panic!(
+            "Failed to copy whisper sources into {}: {}",
+            whisper_root.display(),
+            e
+        )
+    });
 
     if env::var("WHISPER_DONT_GENERATE_BINDINGS").is_ok() {
         let _: u64 = std::fs::copy("src/bindings.rs", out.join("bindings.rs"))

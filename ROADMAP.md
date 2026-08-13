@@ -170,12 +170,25 @@ la conception des phases 06 et 07. Il faut le savoir maintenant.
 | **CUDA Toolkit** | **11.0** | **BLOQUANT** |
 | **libclang** | **absent** | **BLOQUANT** |
 
-**CUDA 11.0 ne peut pas cibler `sm_89`** — vérifié :
-`nvcc fatal : Value 'sm_89' is not defined for option 'gpu-architecture'`.
-Le dossier `v11.8` présent sur la machine est **vide** : ce n'est pas un toolkit.
-Installer le **CUDA Toolkit 12.4+** (composants seuls, **sans le pilote** : celui de la
-machine est plus récent), puis faire pointer `CUDA_PATH` dessus — `build.rs` le lit
-directement pour trouver `lib/x64`.
+**Le toolkit doit satisfaire deux contraintes indépendantes** — les deux ont été
+rencontrées sur cette machine :
+
+1. **Cibler `sm_89`** (Ada). CUDA 11.0 ne le peut pas :
+   `nvcc fatal : Value 'sm_89' is not defined for option 'gpu-architecture'`.
+   Acquis depuis 11.8. Le dossier `v11.8` de la machine est **vide** : ce n'est pas un toolkit.
+2. **Accepter le MSVC installé.** `crt/host_config.h` refuse tout compilateur hors de sa
+   fenêtre. **CUDA 12.0 rejette `_MSC_VER >= 1940`** alors que la machine porte MSVC 14.41
+   (1941) et 14.44 (1944) : le build meurt en 3 s sur `CMakeCUDACompilerId.cu`, sans avoir
+   rien compilé. Un toolkit trop récent pour l'architecture **et** trop ancien pour le
+   compilateur échoue de deux façons différentes.
+
+→ **Exiger CUDA 12.9 ou 13.x** (support de `_MSC_VER` 1944). Contrôle avant installation :
+`grep _MSC_VER "<CUDA>/include/crt/host_config.h"`.
+
+Installer les composants **sans le pilote** (celui de la machine est plus récent), puis
+faire pointer `CUDA_PATH` dessus — `build.rs` le lit directement pour trouver `lib/x64`.
+Épingler l'architecture avec `CUDAARCHS=89` : `build.rs` ne définit pas
+`CMAKE_CUDA_ARCHITECTURES`, et sans cela ggml compile pour toutes les architectures connues.
 
 **libclang est obligatoire** : bindgen en a besoin, et `WHISPER_DONT_GENERATE_BINDINGS`
 n'est pas une échappatoire sur Windows (le `bindings.rs` fourni est généré sous Linux et
@@ -216,7 +229,9 @@ casse les assertions de layout MSVC). Le spike l'obtient via `spike/.venv-libcla
       silence**, précision ≈ 10 ms (seuil visé : 200 ms)
 - [ ] `nvcc` ≥ 12.4 et compilation `sm_89` réussie
 - [ ] Temps et VRAM consignés dans `spike/RESULTS.md`, sur un fichier français d'environ 15 min
-- [ ] Le VAD s'active et réduit le nombre de segments sur l'audio silencieux
+- [x] **Silero vérifié** : détection correcte des plages de parole (16,58–24,83 s et
+      42,40–50,62 s contre 15,00–25,79 s et 40,79–51,58 s réelles). L'intégration passe
+      en phase 04, côté Rust — le chemin `FullParams` est inutilisable (PATCH 002 annulé)
 - [ ] L'app Tauri de test transcrit depuis un dossier d'installation, machine sans variables
       d'environnement de développement
 - [x] **Décision GO / REPLI remontée à l'utilisateur** — GO, repli au segment écarté
@@ -342,6 +357,14 @@ en mémoire.
 
 **Tâches**
 1. Intégration `whisper-rs` avec CUDA, DTW et VAD Silero, selon les conclusions de la phase 00.
+   **Le VAD se fait côté Rust, pas via `FullParams`.** Décision prise en phase 00 après
+   l'échec de PATCH 002 : le drapeau `vad` de `FullParams` est **silencieusement ignoré**
+   par le chemin `whisper_full_with_state` qu'utilise whisper-rs, et le déplacer provoque
+   un segfault (`ctx->state` est nul). Utiliser l'API VAD exportée par whisper-rs
+   (`whisper_vad::*`) : détecter les plages de parole, transcrire chacune avec un décalage
+   connu, additionner les décalages aux horodatages DTW. Silero est fiable — mesuré à
+   ±1,6 s sur les bornes de parole de `fixtures/vad-test.wav`. Détail : vendor/PATCHES.md.
+   Prévoir un test de non-régression comparant le nombre de segments avec et sans VAD.
 2. Gestion des modèles : téléchargement avec progression (octets, débit, ETA), vérification
    d'intégrité, `large-v3-turbo` et `large-v3`, suppression, emplacement configurable.
    **Afficher la taille réelle du fichier, pas celle du prototype.**

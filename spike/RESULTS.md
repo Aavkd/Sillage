@@ -110,10 +110,39 @@ les valeurs brutes sous `raw_start_ms` / `raw_end_ms` pour mesurer l'écart.
 **Pour les phases 04, 05 et 06.** La colonne d'horodatages de l'écran 02 et le texte en
 streaming de l'écran 01 dépendent tous deux de ce point.
 
-### 4.3 Le VAD n'est pas optionnel
+### 4.3 Le VAD n'est pas optionnel — mais il ne passe pas par `FullParams`
 
 Sans VAD, 45 s de silence pur produisent **quatre segments hallucinés** `'...'`. Sur un
 enregistrement réel comportant des pauses, cela pollue la transcription et la couche LLM.
+
+Le drapeau `vad` de `FullParams` est pourtant **inutilisable** :
+
+1. `set_vad_model_path()` seul ne suffit pas ; il faut aussi `enable_vad(true)`.
+2. Même ainsi, whisper.cpp n'implémente le VAD que dans `whisper_full()`, alors que
+   whisper-rs n'appelle que `whisper_full_with_state()`. Le drapeau est **accepté et
+   silencieusement ignoré**.
+3. Déplacer le bloc VAD (PATCH 002) provoque un **segfault systématique** : whisper-rs
+   initialise le contexte en `_no_state`, donc `ctx->state` est nul, hypothèse que le
+   chemin VAD amont ne fait jamais. **Correctif annulé.**
+
+Silero lui-même est fiable : plages détectées 16,58–24,83 s et 42,40–50,62 s, contre
+15,00–25,79 s et 40,79–51,58 s réelles.
+
+**Décision** : faire le VAD côté Rust en phase 04, via `whisper_vad::*` qu'exporte
+whisper-rs — détecter les plages de parole, transcrire chacune avec un décalage connu.
+
+### 4.4 Le fork ne se recompilait pas — PATCH 003
+
+Le piège le plus coûteux de la phase. `build.rs` ne surveillait que `wrapper.h`, **et** ne
+copiait les sources dans `OUT_DIR` qu'à la création du dossier. Toute modification du C++
+vendorisé donnait un `cargo build` réussi qui **réutilisait l'ancienne bibliothèque**.
+
+PATCH 001 n'a fonctionné que parce qu'il était présent à la toute première compilation.
+Contrôle obligatoire avant d'interpréter le moindre test :
+
+```bash
+grep -c "SILLAGE PATCH 001" spike/target/release/build/whisper-rs-sys-*/out/whisper.cpp/src/whisper.cpp
+```
 
 ---
 

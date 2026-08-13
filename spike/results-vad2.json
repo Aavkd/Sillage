@@ -1,0 +1,331 @@
+{
+  "model": "D:/Documents/MANTARA/AI COMPAGNON APP/models/whisper/ggml-large-v3-turbo.bin",
+  "audio": "fixtures/vad-test.wav",
+  "backend": "cpu",
+  "language": "fr",
+  "vad": true,
+  "dtw_enabled": true,
+  "stream_callbacks": 8,
+  "audio_ms": 66589,
+  "transcribe_ms": 1133730,
+  "realtime_factor": 0.05873444294496926,
+  "segment_count": 8,
+  "word_count": 32,
+  "dtw_coverage": 1.0,
+  "monotonic": true,
+  "max_bound_disagreement_ms": 16600,
+  "segments": [
+    {
+      "index": 0,
+      "start_ms": 2400,
+      "end_ms": 2400,
+      "raw_start_ms": 0,
+      "raw_end_ms": 260,
+      "text": "...",
+      "no_speech_prob": 4.904305e-10,
+      "words": [
+        {
+          "text": "...",
+          "start_ms": 2400,
+          "end_ms": 2400,
+          "prob": 0.8304313,
+          "dtw": true
+        }
+      ]
+    },
+    {
+      "index": 1,
+      "start_ms": 16860,
+      "end_ms": 20460,
+      "raw_start_ms": 260,
+      "raw_end_ms": 19980,
+      "text": "Ok, j'ai l'impression que pour l'instant tout fonctionne.",
+      "no_speech_prob": 4.904305e-10,
+      "words": [
+        {
+          "text": "Ok,",
+          "start_ms": 16860,
+          "end_ms": 17420,
+          "prob": 0.5728064,
+          "dtw": true
+        },
+        {
+          "text": "j'ai",
+          "start_ms": 17700,
+          "end_ms": 17740,
+          "prob": 1.0,
+          "dtw": true
+        },
+        {
+          "text": "l'impression",
+          "start_ms": 17820,
+          "end_ms": 18140,
+          "prob": 1.0,
+          "dtw": true
+        },
+        {
+          "text": "que",
+          "start_ms": 18460,
+          "end_ms": 18780,
+          "prob": 0.99980164,
+          "dtw": true
+        },
+        {
+          "text": "pour",
+          "start_ms": 18780,
+          "end_ms": 18860,
+          "prob": 0.99944705,
+          "dtw": true
+        },
+        {
+          "text": "l'instant",
+          "start_ms": 18860,
+          "end_ms": 19060,
+          "prob": 0.99879795,
+          "dtw": true
+        },
+        {
+          "text": "tout",
+          "start_ms": 19380,
+          "end_ms": 19920,
+          "prob": 0.9064349,
+          "dtw": true
+        },
+        {
+          "text": "fonctionne.",
+          "start_ms": 19920,
+          "end_ms": 20460,
+          "prob": 0.9423861,
+          "dtw": true
+        }
+      ]
+    },
+    {
+      "index": 2,
+      "start_ms": 21220,
+      "end_ms": 24740,
+      "raw_start_ms": 19980,
+      "raw_end_ms": 24740,
+      "text": "Sinon, eh bien, fais-le moi savoir.",
+      "no_speech_prob": 4.904305e-10,
+      "words": [
+        {
+          "text": "Sinon,",
+          "start_ms": 21220,
+          "end_ms": 22300,
+          "prob": 1.0,
+          "dtw": true
+        },
+        {
+          "text": "eh",
+          "start_ms": 22420,
+          "end_ms": 22700,
+          "prob": 0.99772143,
+          "dtw": true
+        },
+        {
+          "text": "bien,",
+          "start_ms": 22700,
+          "end_ms": 23880,
+          "prob": 0.997931,
+          "dtw": true
+        },
+        {
+          "text": "fais-le",
+          "start_ms": 24120,
+          "end_ms": 24240,
+          "prob": 0.9994066,
+          "dtw": true
+        },
+        {
+          "text": "moi",
+          "start_ms": 24400,
+          "end_ms": 24720,
+          "prob": 0.33737016,
+          "dtw": true
+        },
+        {
+          "text": "savoir.",
+          "start_ms": 24720,
+          "end_ms": 24740,
+          "prob": 0.9996797,
+          "dtw": true
+        }
+      ]
+    },
+    {
+      "index": 3,
+      "start_ms": 31620,
+      "end_ms": 40000,
+      "raw_start_ms": 30000,
+      "raw_end_ms": 40000,
+      "text": "...",
+      "no_speech_prob": 1.2948902e-9,
+      "words": [
+        {
+          "text": "...",
+          "start_ms": 31620,
+          "end_ms": 40000,
+          "prob": 0.7381854,
+          "dtw": true
+        }
+      ]
+    },
+    {
+      "index": 4,
+      "start_ms": 42640,
+      "end_ms": 46180,
+      "raw_start_ms": 40000,
+      "raw_end_ms": 45780,
+      "text": "Ok, j'ai l'impression que pour l'instant tout fonctionne.",
+      "no_speech_prob": 1.2948902e-9,
+      "words": [
+        {
+          "text": "Ok,",
+          "start_ms": 42640,
+          "end_ms": 43340,
+          "prob": 0.96647775,
+          "dtw": true
+        },
+        {
+          "text": "j'ai",
+          "start_ms": 43480,
+          "end_ms": 43540,
+          "prob": 0.9999574,
+          "dtw": true
+        },
+        {
+          "text": "l'impression",
+          "start_ms": 43620,
+          "end_ms": 43940,
+          "prob": 0.9999981,
+          "dtw": true
+        },
+        {
+          "text": "que",
+          "start_ms": 44260,
+          "end_ms": 44580,
+          "prob": 0.99899155,
+          "dtw": true
+        },
+        {
+          "text": "pour",
+          "start_ms": 44580,
+          "end_ms": 44640,
+          "prob": 0.99819344,
+          "dtw": true
+        },
+        {
+          "text": "l'instant",
+          "start_ms": 44640,
+          "end_ms": 44840,
+          "prob": 0.999594,
+          "dtw": true
+        },
+        {
+          "text": "tout",
+          "start_ms": 45180,
+          "end_ms": 45720,
+          "prob": 0.9995042,
+          "dtw": true
+        },
+        {
+          "text": "fonctionne.",
+          "start_ms": 45720,
+          "end_ms": 46180,
+          "prob": 0.9879134,
+          "dtw": true
+        }
+      ]
+    },
+    {
+      "index": 5,
+      "start_ms": 47020,
+      "end_ms": 50880,
+      "raw_start_ms": 45780,
+      "raw_end_ms": 50520,
+      "text": "Sinon, eh bien, fais-le moi savoir.",
+      "no_speech_prob": 1.2948902e-9,
+      "words": [
+        {
+          "text": "Sinon,",
+          "start_ms": 47020,
+          "end_ms": 48080,
+          "prob": 0.99975973,
+          "dtw": true
+        },
+        {
+          "text": "eh",
+          "start_ms": 48220,
+          "end_ms": 48500,
+          "prob": 0.9978413,
+          "dtw": true
+        },
+        {
+          "text": "bien,",
+          "start_ms": 48500,
+          "end_ms": 49720,
+          "prob": 0.9985515,
+          "dtw": true
+        },
+        {
+          "text": "fais-le",
+          "start_ms": 49940,
+          "end_ms": 50040,
+          "prob": 0.9951513,
+          "dtw": true
+        },
+        {
+          "text": "moi",
+          "start_ms": 50180,
+          "end_ms": 50500,
+          "prob": 0.99818397,
+          "dtw": true
+        },
+        {
+          "text": "savoir.",
+          "start_ms": 50500,
+          "end_ms": 50880,
+          "prob": 0.997626,
+          "dtw": true
+        }
+      ]
+    },
+    {
+      "index": 6,
+      "start_ms": 50880,
+      "end_ms": 50900,
+      "raw_start_ms": 50520,
+      "raw_end_ms": 50900,
+      "text": "...",
+      "no_speech_prob": 1.2948902e-9,
+      "words": [
+        {
+          "text": "...",
+          "start_ms": 50880,
+          "end_ms": 50900,
+          "prob": 0.9839267,
+          "dtw": true
+        }
+      ]
+    },
+    {
+      "index": 7,
+      "start_ms": 61000,
+      "end_ms": 62000,
+      "raw_start_ms": 60000,
+      "raw_end_ms": 62000,
+      "text": "...",
+      "no_speech_prob": 5.597445e-9,
+      "words": [
+        {
+          "text": "...",
+          "start_ms": 61000,
+          "end_ms": 62000,
+          "prob": 1.0,
+          "dtw": true
+        }
+      ]
+    }
+  ]
+}
