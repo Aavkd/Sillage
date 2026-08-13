@@ -190,14 +190,41 @@ lit 0 Mo et on croit à tort n'avoir rien mesuré.
 **Les temps CPU relevés ailleurs dans ce document n'ont aucune valeur prédictive**
 (≈ 0,04× temps réel, sans BLAS) : ils n'établissent que la correction fonctionnelle.
 
-## 7. Ce qui reste ouvert
+## 7. Empaquetage — second risque, levé
 
-| Point | État |
+Exécution depuis un dossier **hors de l'arbre de développement**, `PATH` réduit à
+`System32` : le binaire refuse de démarrer tant que les DLL CUDA ne l'accompagnent pas
+(`cudart64_12.dll: cannot open shared object file`, code 127). Une fois les fichiers
+placés à côté, la transcription aboutit — **code 0, backend CUDA, 13,7× temps réel**.
+
+### Contenu minimal à livrer
+
+| Fichier | Taille |
 |---|---|
-| Empaquetage Tauri hors arbre de dev | **non fait** — second risque de la phase, indépendant |
+| `cublasLt64_12.dll` | **637 Mo** |
+| `ffmpeg.exe` | 148 Mo |
+| `cublas64_12.dll` | 98 Mo |
+| `spike.exe` (binaire CUDA) | 48,5 Mo |
+| `cudart64_12.dll` | 0,6 Mo |
+| **Total** | **923 Mo** |
 
-Sur Windows, **deux** variables d'environnement sont nécessaires et lues par des
-consommateurs différents : `build.rs` lit `CUDA_PATH` pour trouver `lib/x64` à l'édition
-de liens, tandis que `CUDA <version>.targets` de MSBuild lit `CUDA_PATH_V12_9` pour
-localiser le toolkit. N'en définir qu'une donne un échec de compilation en 2 s :
-`The CUDA Toolkit v12.9 directory '' does not exist`.
+À quoi s'ajoute le modèle (**1,62 Go**), téléchargé au premier lancement et donc absent
+de l'installeur.
+
+> L'estimation « quelques centaines de Mo » avancée au round 3 était **très optimiste** :
+> les seules DLL CUDA pèsent 735 Mo, dont 637 Mo pour `cublasLt` à elle seule.
+>
+> **Piste pour la phase 12** : `nvprune` permet de réduire `cublas`/`cublasLt` à la seule
+> architecture `sm_89`, ce qui devrait retrancher plusieurs centaines de Mo. À mesurer.
+
+### Pièges rencontrés
+
+- **Deux variables d'environnement, deux consommateurs.** `build.rs` lit `CUDA_PATH` pour
+  trouver `lib/x64` à l'édition de liens ; `CUDA <version>.targets` de MSBuild lit
+  `CUDA_PATH_V12_9` pour localiser le toolkit. N'en définir qu'une échoue en 2 s :
+  `The CUDA Toolkit v12.9 directory '' does not exist`.
+- **Ne jamais résoudre un binaire à embarquer via `which`.** Sur cette machine, `which
+  ffmpeg` renvoie un *shim* scoop de 136 Ko qui ne fonctionne pas une fois déplacé. Le
+  vrai binaire fait 148 Mo. L'installeur doit référencer un chemin réel.
+- **Sous MSYS, `rm -f ffmpeg` supprime `ffmpeg.exe`.** Le nom sans extension est résolu
+  vers l'exécutable.

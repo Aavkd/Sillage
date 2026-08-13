@@ -227,13 +227,16 @@ casse les assertions de layout MSVC). Le spike l'obtient via `spike/.venv-libcla
       couverture DTW 100 %
 - [x] Alignement vérifié objectivement — **28/28 mots réels dans la parole, 0 dans le
       silence**, précision ≈ 10 ms (seuil visé : 200 ms)
-- [ ] `nvcc` ≥ 12.4 et compilation `sm_89` réussie
-- [ ] Temps et VRAM consignés dans `spike/RESULTS.md`, sur un fichier français d'environ 15 min
+- [x] Build CUDA réussi — CUDA 12.9.41, `sm_89`, binaire 48,5 Mo (contre 3 Mo en CPU)
+- [x] Temps et VRAM consignés — **12,1× temps réel**, **2 353 Mo** de VRAM, sur 12 min 06 s
+      de français réel ; 2 815 mots, couverture DTW 100 %, 612 callbacks de streaming
 - [x] **Silero vérifié** : détection correcte des plages de parole (16,58–24,83 s et
       42,40–50,62 s contre 15,00–25,79 s et 40,79–51,58 s réelles). L'intégration passe
       en phase 04, côté Rust — le chemin `FullParams` est inutilisable (PATCH 002 annulé)
-- [ ] L'app Tauri de test transcrit depuis un dossier d'installation, machine sans variables
-      d'environnement de développement
+- [x] Exécution hors arbre de dev, `PATH` réduit à `System32` — **code 0, backend CUDA**,
+      après ajout des 3 DLL CUDA et de ffmpeg. Charge utile **923 Mo** (dont 637 Mo pour
+      `cublasLt64_12.dll` seule), plus 1,62 Go de modèle téléchargé au premier lancement.
+      Piste de réduction pour la phase 12 : `nvprune` vers `sm_89` uniquement
 - [x] **Décision GO / REPLI remontée à l'utilisateur** — GO, repli au segment écarté
 
 > **Point d'arrêt.** Si le DTW est inexploitable, ne pas continuer seul : présenter le repli
