@@ -38,8 +38,13 @@ struct Word {
 #[derive(Serialize)]
 struct Segment {
     index: i32,
+    /// Derived from the first/last word's DTW times. Whisper's own segment timestamps are
+    /// unreliable after silence (measured: 16.6 s out on one segment), so never show those.
     start_ms: i64,
     end_ms: i64,
+    /// Whisper's raw segment timestamps, kept only to measure the disagreement.
+    raw_start_ms: i64,
+    raw_end_ms: i64,
     text: String,
     no_speech_prob: f32,
     words: Vec<Word>,
@@ -63,7 +68,9 @@ struct Report {
     /// Share of words carrying a real DTW timestamp. Below ~0.95 the editor is in trouble.
     dtw_coverage: f64,
     monotonic: bool,
-    within_segment_bounds: bool,
+    /// Largest gap between a segment's own start timestamp and its first word's DTW time.
+    /// Large values are expected and are why segment timestamps must not be displayed.
+    max_bound_disagreement_ms: i64,
     segments: Vec<Segment>,
 }
 
@@ -281,7 +288,7 @@ fn main() -> Result<()> {
     let mut word_count = 0usize;
     let mut dtw_words = 0usize;
     let mut monotonic = true;
-    let mut within_bounds = true;
+    let mut max_bound_disagreement = 0i64;
     let mut last_end = i64::MIN;
 
     let eot = ctx.token_eot();
@@ -358,16 +365,23 @@ fn main() -> Result<()> {
                 monotonic = false;
             }
             last_end = w.end_ms;
-            // 50 ms of slack: DTW may nudge a word marginally past its segment edge.
-            if w.start_ms + 50 < seg_start || w.end_ms > seg_end + 50 {
-                within_bounds = false;
-            }
         }
+
+        // Prefer word-derived bounds; fall back to whisper's only when a segment has no words.
+        let (derived_start, derived_end) = match (words.first(), words.last()) {
+            (Some(f), Some(l)) => {
+                max_bound_disagreement = max_bound_disagreement.max((f.start_ms - seg_start).abs());
+                (f.start_ms, l.end_ms)
+            }
+            _ => (seg_start, seg_end),
+        };
 
         segments.push(Segment {
             index: seg.segment_index(),
-            start_ms: seg_start,
-            end_ms: seg_end,
+            start_ms: derived_start,
+            end_ms: derived_end,
+            raw_start_ms: seg_start,
+            raw_end_ms: seg_end,
             text: seg.to_str_lossy().unwrap_or_default().trim().to_string(),
             no_speech_prob: seg.no_speech_probability(),
             words,
@@ -395,7 +409,7 @@ fn main() -> Result<()> {
         word_count,
         dtw_coverage,
         monotonic,
-        within_segment_bounds: within_bounds,
+        max_bound_disagreement_ms: max_bound_disagreement,
         segments,
     };
 
@@ -408,7 +422,10 @@ fn main() -> Result<()> {
     println!("words          : {}", report.word_count);
     println!("dtw coverage   : {:.1} %", report.dtw_coverage * 100.0);
     println!("monotonic      : {}", report.monotonic);
-    println!("within bounds  : {}", report.within_segment_bounds);
+    println!(
+        "seg-bound drift: {} ms (whisper's own segment times; words are the reliable signal)",
+        report.max_bound_disagreement_ms
+    );
     println!(
         "speed          : {} ms for {} ms of audio ({:.1}× realtime)",
         report.transcribe_ms, report.audio_ms, report.realtime_factor

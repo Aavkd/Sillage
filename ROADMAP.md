@@ -210,12 +210,11 @@ casse les assertions de layout MSVC). Le spike l'obtient via `spike/.venv-libcla
       — couverture DTW 100 % sur `fixtures/speech-fr.wav`
 - [x] Les intervalles de mots sont non dégénérés (aucun `end_ms <= start_ms`)
 - [x] **PATCH 001** : streaming **et** couverture DTW 100 % sur un fichier mono-bloc
-- [ ] **PATCH 001 sur un fichier multi-bloc** (> 30 s) : le callback part **plus d'une fois**,
-      couverture DTW toujours à 100 % — le second défaut de la boucle amont ne se manifeste
-      qu'à partir du deuxième bloc, un test mono-bloc ne le détecte pas
+- [x] **PATCH 001 sur un fichier multi-bloc** (> 30 s) — 8 callbacks sur 3 blocs,
+      couverture DTW 100 %
+- [x] Alignement vérifié objectivement — **28/28 mots réels dans la parole, 0 dans le
+      silence**, précision ≈ 10 ms (seuil visé : 200 ms)
 - [ ] `nvcc` ≥ 12.4 et compilation `sm_89` réussie
-- [ ] Alignement vérifié objectivement : sur `fixtures/vad-test.wav`, **aucun mot** ne tombe
-      dans les plages de silence connues (0–15 s, 25,8–40,8 s, 51,6–66,6 s)
 - [ ] Temps et VRAM consignés dans `spike/RESULTS.md`, sur un fichier français d'environ 15 min
 - [ ] Le VAD s'active et réduit le nombre de segments sur l'audio silencieux
 - [ ] L'app Tauri de test transcrit depuis un dossier d'installation, machine sans variables
@@ -349,6 +348,9 @@ en mémoire.
 3. Injection du vocabulaire personnalisé en `initial_prompt`.
 4. Langue : auto-détection, ou forçage `fr` / `en` selon les réglages, surchargeable par fichier.
 5. `new_segment_callback` → événements Tauri, débit maîtrisé (pas un événement par token).
+   **Suppose PATCH 001** (vendor/PATCHES.md) : sans lui, ce callback ne part jamais quand
+   le DTW est actif. Persister les bornes de segment **dérivées des mots**, pas celles
+   renvoyées par whisper — voir spike/RESULTS.md §4.2.
 6. File séquentielle persistée : positions, reprise au lancement, une seule tâche active.
 7. Progression et ETA dérivés de la **position audio réelle**.
 8. Gestion de l'échec de chargement pour VRAM insuffisante, message de CONCEPTION.md §8.
@@ -414,6 +416,17 @@ C'est l'écran qui justifie tout le reste. Le repère de lecture principal est l
 des segments non courants** : le segment lu est en `--text`, les autres en `--dim`, son
 horodatage passe en `--accent`. Le mot lu porte le surlignage `--accentSoft` avec sa règle
 intérieure. Sans cela, l'écran est un mur de texte.
+
+**Deux règles issues du spike (phase 00), non négociables :**
+1. `t_dtw` est un **instant d'ancrage par token**, pas une durée. Les intervalles de mots
+   se dérivent : un mot finit là où le suivant commence, le dernier avec son segment.
+   Sans cette dérivation, tout mot d'un seul token a `start == end` et le surlignage
+   ne peut pas fonctionner.
+2. **Ne jamais afficher les horodatages de segment de whisper.** Ils sont faux après un
+   silence — écart mesuré jusqu'à **16,6 s**. Les bornes d'un segment se dérivent de son
+   premier et de son dernier mot. Vaut aussi pour la colonne d'horodatages de l'écran 02.
+
+Détail et mesures : [spike/RESULTS.md](spike/RESULTS.md) §4.
 
 **Tâches**
 1. Colonne 880 px centrée, en-tête, métadonnées, tags, indicateur « Édité ».
