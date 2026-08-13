@@ -1,10 +1,59 @@
-//! Tauri commands exposed to the frontend.
+//! Tauri commands exposed to the frontend, and the state they read.
 
+use std::path::PathBuf;
 use std::sync::Mutex;
 
 use tauri::State;
 
+use crate::library::Library;
 use crate::settings::{Appearance, Settings, SettingsError, SettingsStore};
+
+/// The open library, or the French message explaining why it could not be opened.
+///
+/// Phase 02 has no screen, so nothing reads it yet; it is here so that the folder is created and
+/// the migrations run at the first launch after this phase, and so that phases 03 and after have
+/// a single place to reach the library from.
+pub struct LibraryState {
+    inner: Mutex<Result<Library, String>>,
+}
+
+impl LibraryState {
+    /// Opens the library, keeping the failure rather than propagating it.
+    #[must_use]
+    pub fn open(root: impl Into<PathBuf>) -> Self {
+        let inner = Library::open(root).map_err(|err| err.to_string());
+        Self {
+            inner: Mutex::new(inner),
+        }
+    }
+
+    /// Runs `f` against the open library, or returns the French message saying why it is not.
+    pub fn with<T>(&self, f: impl FnOnce(&Library) -> T) -> Result<T, String> {
+        match &*self.inner.lock().expect("library mutex poisoned") {
+            Ok(library) => Ok(f(library)),
+            Err(message) => Err(message.clone()),
+        }
+    }
+
+    /// The root of the open library, if there is one.
+    #[must_use]
+    pub fn root(&self) -> Option<PathBuf> {
+        self.with(|library| library.paths().root().to_path_buf())
+            .ok()
+    }
+
+    /// Whether the library opened.
+    #[must_use]
+    pub fn is_open(&self) -> bool {
+        self.with(|_| ()).is_ok()
+    }
+
+    /// The message to show if it did not.
+    #[must_use]
+    pub fn error(&self) -> Option<String> {
+        self.with(|_| ()).err()
+    }
+}
 
 /// Settings held in memory, kept in sync with the file on every write.
 pub struct SettingsState {
@@ -31,7 +80,11 @@ impl SettingsState {
     /// running app and the config file cannot disagree. Kept free of Tauri types so the whole
     /// path — sanitize, persist, re-read on next launch — is covered by ordinary tests.
     pub fn update_appearance(&self, appearance: Appearance) -> Result<Settings, SettingsError> {
-        let next = Settings { appearance }.sanitized();
+        // Only the appearance changes: every other section is carried over untouched, so a
+        // theme switch can never reset a setting the user made elsewhere.
+        let mut next = self.snapshot();
+        next.appearance = appearance;
+        let next = next.sanitized();
         self.store.save(&next)?;
 
         *self.current.lock().expect("settings mutex poisoned") = next.clone();
@@ -62,7 +115,7 @@ pub fn set_appearance(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::settings::{Theme, DEFAULT_ACCENT, SETTINGS_FILE};
+    use crate::settings::{LibrarySettings, Theme, DEFAULT_ACCENT, SETTINGS_FILE};
 
     fn state() -> (tempfile::TempDir, SettingsState) {
         let dir = tempfile::tempdir().expect("tempdir");
@@ -158,5 +211,62 @@ mod tests {
             assert_eq!(relaunched.snapshot().appearance.theme, theme);
             assert_eq!(relaunched.snapshot().appearance.accent, accent);
         }
+    }
+
+    #[test]
+    fn changing_the_appearance_leaves_the_other_sections_alone() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let store = SettingsStore::new(dir.path().join(SETTINGS_FILE));
+        store
+            .save(&Settings {
+                library: LibrarySettings {
+                    folder: Some(PathBuf::from(r"E:\Archives\Sillage")),
+                },
+                ..Settings::default()
+            })
+            .expect("save");
+
+        let state = SettingsState::new(store);
+        let stored = state
+            .update_appearance(Appearance {
+                theme: Theme::Light,
+                accent: "#8E9A5B".to_string(),
+            })
+            .expect("update");
+
+        assert_eq!(
+            stored.library.folder,
+            Some(PathBuf::from(r"E:\Archives\Sillage")),
+            "the library folder must survive a theme change"
+        );
+    }
+
+    #[test]
+    fn the_library_state_holds_an_open_library() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let state = LibraryState::open(dir.path().join("Sillage"));
+
+        assert!(state.is_open());
+        assert_eq!(state.error(), None);
+        assert_eq!(state.root(), Some(dir.path().join("Sillage")));
+        let count = state
+            .with(|library| library.db().count_transcripts())
+            .expect("library open")
+            .expect("count");
+        assert_eq!(count, 0);
+    }
+
+    #[test]
+    fn a_library_that_cannot_be_opened_keeps_its_message_instead_of_panicking() {
+        // A file where the folder should be: the closest reproducible stand-in for the external
+        // drive left at home.
+        let dir = tempfile::tempdir().expect("tempdir");
+        let occupied = dir.path().join("Sillage");
+        std::fs::write(&occupied, b"pas un dossier").expect("write");
+
+        let state = LibraryState::open(&occupied);
+        assert!(!state.is_open());
+        assert!(state.error().is_some(), "the failure must be reportable");
+        assert_eq!(state.root(), None);
     }
 }

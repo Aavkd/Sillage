@@ -9,12 +9,14 @@ dist/
 *.tsbuildinfo
 
 # Modèles Whisper — trop volumineux, téléchargés au premier lancement
-models/
+# Ancrés à la racine : sans le `/` initial, git ignore *tout* dossier de ce nom, à n'importe
+# quelle profondeur — `src-tauri/src/library/` compris. Constaté en phase 02.
+/models/
 *.bin
 *.gguf
 
 # Bibliothèque locale — données utilisateur
-library/
+/library/
 *.db
 *.db-shm
 *.db-wal

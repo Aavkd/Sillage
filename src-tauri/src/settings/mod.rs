@@ -11,6 +11,8 @@ use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
 
+use crate::library::LibraryPaths;
+
 /// Default accent, `#E08A4B` — DESIGN.md §2.5.
 pub const DEFAULT_ACCENT: &str = "#E08A4B";
 
@@ -50,10 +52,22 @@ impl Default for Appearance {
     }
 }
 
+/// Where the library folder lives (CONCEPTION.md §3.4).
+///
+/// `None` means « wherever the default is », rather than a path frozen at first launch: the
+/// default is resolved from the user's Documents folder at every start, so a machine whose
+/// Documents folder has moved keeps working.
+#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(default, rename_all = "camelCase")]
+pub struct LibrarySettings {
+    pub folder: Option<PathBuf>,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
 #[serde(default, rename_all = "camelCase")]
 pub struct Settings {
     pub appearance: Appearance,
+    pub library: LibrarySettings,
 }
 
 /// Validates `#RRGGBB` and normalizes it to uppercase.
@@ -79,6 +93,15 @@ impl Settings {
         self.appearance.accent =
             normalize_accent(&self.appearance.accent).unwrap_or_else(|| DEFAULT_ACCENT.to_string());
         self
+    }
+
+    /// The library folder actually to use: the chosen one, or `<Documents>/Sillage`.
+    #[must_use]
+    pub fn library_root(&self, documents_dir: impl AsRef<Path>) -> PathBuf {
+        self.library
+            .folder
+            .clone()
+            .unwrap_or_else(|| LibraryPaths::default_root(documents_dir))
     }
 }
 
@@ -155,6 +178,41 @@ mod tests {
     }
 
     #[test]
+    fn the_library_folder_defaults_to_documents_and_is_overridable() {
+        let documents = Path::new(r"C:\Users\x\Documents");
+
+        let default = Settings::default();
+        assert_eq!(default.library.folder, None);
+        assert_eq!(default.library_root(documents), documents.join("Sillage"));
+
+        let chosen = Settings {
+            library: LibrarySettings {
+                folder: Some(PathBuf::from(r"E:\Archives\Sillage")),
+            },
+            ..Settings::default()
+        };
+        assert_eq!(
+            chosen.library_root(documents),
+            PathBuf::from(r"E:\Archives\Sillage")
+        );
+    }
+
+    #[test]
+    fn a_config_written_before_the_library_section_existed_still_loads() {
+        // Exactly the file phase 01 wrote. It must keep working, and pick up the default folder.
+        let (_dir, store) = store();
+        fs::write(
+            store.path(),
+            r##"{"appearance":{"theme":"light","accent":"#8E9A5B"}}"##,
+        )
+        .expect("write");
+
+        let loaded = store.load();
+        assert_eq!(loaded.appearance.accent, "#8E9A5B");
+        assert_eq!(loaded.library.folder, None);
+    }
+
+    #[test]
     fn missing_file_loads_defaults() {
         let (_dir, store) = store();
         assert_eq!(store.load(), Settings::default());
@@ -202,6 +260,9 @@ mod tests {
                 theme: Theme::Light,
                 accent: "#8E9A5B".to_string(),
             },
+            library: LibrarySettings {
+                folder: Some(PathBuf::from(r"E:\Sillage")),
+            },
         };
 
         store.save(&settings).expect("save");
@@ -220,6 +281,7 @@ mod tests {
                 theme: Theme::Light,
                 accent: "#D8D83C".to_string(),
             },
+            ..Settings::default()
         };
         store.save(&updated).expect("second save");
 
@@ -236,6 +298,7 @@ mod tests {
                         theme: Theme::Dark,
                         accent: accent.to_string(),
                     },
+                    ..Settings::default()
                 })
                 .expect("save");
         }

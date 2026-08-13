@@ -307,6 +307,9 @@ calculé sur le **texte affiché** (verbatim + corrections), pas sur le verbatim
 **Tâches**
 1. Dossier bibliothèque configurable, défaut `%USERPROFILE%\Documents\Sillage`,
    arborescence de CONCEPTION.md §3.4.
+   > **Contradiction levée en phase 02.** CONCEPTION.md §3.4 disait `Documents\Transcript`,
+   > reste de la période où l'application n'était pas encore nommée (CONCEPTION.md §9 tranche
+   > pour « Sillage »). `Sillage` retenu, CONCEPTION.md §3.4 corrigé dans le même commit.
 2. SQLite (`rusqlite`) + migrations versionnées. Tables : `transcripts`, `segments`, `words`,
    `tags`, `transcript_tags`, `llm_outputs`, `queue_items`, `settings`.
 3. Table virtuelle FTS5 sur titre + verbatim + résumé, avec déclencheurs de synchronisation.
@@ -315,13 +318,19 @@ calculé sur le **texte affiché** (verbatim + corrections), pas sur le verbatim
 6. Migration du dossier bibliothèque (déplacement avec les données).
 
 **Critères d'acceptation**
-- [ ] Les migrations s'appliquent sur base vide **et** sur base existante, deux fois de suite
-      sans erreur
-- [ ] Une recherche FTS5 sur un accent français (`résumé`, `déjà`) retourne le bon résultat
-- [ ] Un aller-retour transcription → JSON → transcription est exactement identique
-- [ ] `transcript_hash` change quand une correction change, ne change pas quand un tag change
-- [ ] Le déplacement du dossier bibliothèque conserve toutes les entrées et l'audio
-- [ ] Tests d'intégration sur un dossier temporaire, nettoyé après
+- [x] Les migrations s'appliquent sur base vide **et** sur base existante, deux fois de suite
+      sans erreur — version portée par `PRAGMA user_version`, une transaction par migration
+- [x] Une recherche FTS5 sur un accent français (`résumé`, `déjà`) retourne le bon résultat
+      — `remove_diacritics 2` : `résumé`, `resume`, `DÉJÀ` et `DEJA` trouvent tous la bonne entrée
+- [x] Un aller-retour transcription → JSON → transcription est exactement identique
+      — égalité de la structure **et** des octets réécrits, sur un enregistrement portant
+      segments, mots, probabilités, corrections et tags
+- [x] `transcript_hash` change quand une correction change, ne change pas quand un tag change
+      — ni quand le titre, le statut ou la langue changent ; hachage du **texte affiché**
+- [x] Le déplacement du dossier bibliothèque conserve toutes les entrées et l'audio
+      — index, JSON, pics, médias, file et index FTS ; `rename` sinon copie entre volumes
+- [x] Tests d'intégration sur un dossier temporaire, nettoyé après — 9 tests d'intégration,
+      134 tests unitaires
 
 **Commit** : `phase 02: library folder, sqlite schema, fts5 search`
 

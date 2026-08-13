@@ -1,9 +1,12 @@
 pub mod commands;
+pub mod db;
+pub mod library;
+pub mod model;
 pub mod settings;
 
 use tauri::Manager;
 
-use crate::commands::SettingsState;
+use crate::commands::{LibraryState, SettingsState};
 use crate::settings::{SettingsStore, SETTINGS_FILE};
 
 /// Brings the existing window forward. Used by `single-instance`: a second launch must never
@@ -37,7 +40,15 @@ pub fn run() {
         .setup(|app| {
             let config_dir = app.path().app_config_dir()?;
             let store = SettingsStore::new(config_dir.join(SETTINGS_FILE));
-            app.manage(SettingsState::new(store));
+            let settings = SettingsState::new(store);
+
+            // The library folder is opened at launch, and a failure to open it is carried in the
+            // state rather than raised here: an unreachable folder — an external drive left at
+            // home — must leave the application usable enough to point at another one.
+            let documents = app.path().document_dir()?;
+            let root = settings.snapshot().library_root(documents);
+            app.manage(LibraryState::open(root));
+            app.manage(settings);
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![

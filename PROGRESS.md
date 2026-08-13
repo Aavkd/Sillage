@@ -174,3 +174,105 @@ cela relève d'une décision produit — DESIGN.md §2.3 et le prototype disent 
    - `panic = "abort"` rend impossible tout rattrapage de panique à la frontière des commandes,
      alors que CONCEPTION §8 exige « jamais un crash » sur VRAM insuffisante. À revoir en
      **phase 04**.
+
+---
+
+## Phase 02 — Stockage
+
+- **Statut** : terminée
+- **Tag** : `phase-02`
+- **Vérifié le** : 13 août 2026
+
+### Ce qui est en place
+
+| | |
+|---|---|
+| Dossier bibliothèque | `library/` avec `media/`, `data/`, `outputs/`, défaut `%USERPROFILE%\Documents\Sillage`, déplaçable |
+| Base | SQLite **embarqué** (`rusqlite/bundled`), migrations versionnées par `PRAGMA user_version` |
+| Tables | `transcripts`, `segments`, `words`, `tags`, `transcript_tags`, `llm_outputs`, `queue_items`, `settings` |
+| Recherche | FTS5 contenu externe sur titre + verbatim + résumé, `unicode61 remove_diacritics 2`, 6 déclencheurs |
+| Modèle | `Transcript` complet en JSON, couche de corrections projetée sur le verbatim |
+| Pics | format binaire `SLGP`, 1 octet par bloc de 20 ms — **45 Ko** pour 15 min (budget : 200 Ko) |
+| Hachages | SHA-256 en flux pour le média, `transcript_hash` sur le **texte affiché** |
+| Tests | **134** unitaires Rust + **9** d'intégration (contre 17 en phase 01) · 84 Vitest inchangés |
+
+### Vérifications
+
+| Critère | Constat |
+|---|---|
+| Migrations, base vide et existante, deux fois | Base fermée puis rouverte deux fois, données retrouvées à chaque passe |
+| Accents français en FTS5 | `résumé`, `déjà`, `resume`, `DÉJÀ`, `DEJA`, `réunion` — tous trouvent la bonne entrée, et elle seule |
+| Aller-retour JSON | Structure **et octets** identiques après réécriture, sur un enregistrement portant segments, mots, probabilités, corrections et tags |
+| `transcript_hash` | Bouge sur une correction ; ne bouge ni sur un tag, ni sur un titre, ni sur un statut, ni sur une langue |
+| Déplacement du dossier | Entrées, JSON, pics, audio, file **et** index FTS conservés ; `rename` d'abord, copie récursive entre volumes |
+| Sortie LLM obsolète | Marquée `OBSOLÈTE` par comparaison de hachage, **contenu conservé** (décision #18) |
+| Réindexation non destructive | Ré-enregistrer une transcription conserve ses sorties LLM, sa file et ses tags |
+| Application réelle | Binaire construit lancé hors dev : `Documents\Sillage` créé avec les trois sous-dossiers et `library.db` |
+| Séquence ROADMAP §C | `cargo fmt --check`, `cargo clippy --all-targets -D warnings`, `cargo test`, `npm run lint/typecheck/test`, `npm run tauri build` — toutes vertes |
+
+### Contradiction levée
+
+**CONCEPTION.md §3.4 disait `%USERPROFILE%\Documents\Transcript`**, ROADMAP phase 02 dit
+`Documents\Sillage`. Reste de la période où l'application n'était pas encore nommée —
+CONCEPTION.md §9 tranche pour « Sillage ». **`Sillage` retenu**, CONCEPTION.md §3.4 corrigé
+dans ce commit, mention ajoutée à ROADMAP.md.
+
+### Écarts au design
+
+Aucun — la phase 02 ne touche pas à l'interface.
+
+### Décisions prises en autonomie
+
+1. **Le JSON fait foi, la base est un index.** CONCEPTION §3.4 prévoit les deux ; la règle
+   retenue est que `data/<id>.json` est la référence et que la base est reconstructible à
+   partir des fichiers. Une transcription qui prendrait du retard sur son index se répare ;
+   l'inverse est du travail perdu.
+2. **`transcript_hash` dérivé, jamais stocké dans le JSON.** Seule la base en garde une copie,
+   là où la comparaison d'obsolescence a lieu. CONCEPTION §3.4 complété.
+3. **Le verbatim indexé est le `body` dénormalisé de `transcripts`**, écrit au même moment que
+   `transcript_hash`, plutôt qu'un déclencheur sur `segments`. Un déclencheur par segment
+   réindexerait le document entier à chaque segment : quadratique, soit plusieurs minutes de
+   CPU sur un fichier de 2 h. Le `summary` est lui maintenu par déclencheur depuis
+   `llm_outputs`, son volume ne le justifiant pas.
+4. **`INSERT … ON CONFLICT DO UPDATE` et non `INSERT OR REPLACE`.** `REPLACE` supprime la ligne
+   avant de la réinsérer, et la cascade emporterait sorties LLM, file et tags à chaque
+   réindexation. Couvert par un test dédié.
+5. **La recherche n'est pas un langage de requête.** Tout ce qui n'est ni lettre ni chiffre est
+   un séparateur ; chaque mot est cité puis suffixé de `*`. Une apostrophe, une parenthèse ou
+   un `NEAR(` ne peuvent donc pas produire d'erreur de syntaxe incompréhensible.
+6. **Pondération bm25 titre 10 · résumé 4 · verbatim 1.** Aucune source ne la fixe ; elle est
+   consignée ici et modifiable sans rien casser.
+7. **Table `settings` en base = état *local à la bibliothèque*.** Les réglages de l'utilisateur
+   restent dans `app_config_dir` (décision de phase 01) : l'emplacement du dossier est
+   lui-même un réglage, il ne peut pas être rangé dedans.
+8. **Identifiants UUID v7**, ordonnés dans le temps : `media/` et `data/` restent lisibles
+   dans l'ordre de création.
+9. **`custom:<slug>` devient `custom-<slug>` dans les noms de fichiers.** `:` est interdit sous
+   Windows et créerait silencieusement un flux de données alterné. La base garde le vrai type.
+10. **Le déplacement consomme la bibliothèque** (`relocate(self)`) : la connexion doit être
+    fermée avant que les fichiers bougent sous Windows, et il ne doit rester aucun moyen de
+    réutiliser l'ancienne poignée. Refuse une destination non vide ou située dans la source.
+11. **Portée de la couche de corrections limitée au texte.** La projection verbatim +
+    corrections est là parce que `transcript_hash` en dépend ; l'interpolation temporelle des
+    mots insérés reste en phase 07, et un mot inséré porte `start_ms: None` plutôt qu'un
+    intervalle inventé.
+
+### Dette laissée
+
+1. **Le journal WAL n'est jamais soldé à la fermeture de l'application.** Tauri termine le
+   processus sans exécuter les destructeurs de son état managé : `library.db` reste à 4 096
+   octets et tout le contenu vit dans `library.db-wal`. **Vérifié sans danger** — SQLite
+   récupère le journal à l'ouverture suivante, y compris l'index FTS, ce que couvre le test
+   `a_library_survives_a_process_that_never_closed_it`. Une fermeture explicite sur
+   `WindowEvent::Destroyed` reste plus propre : **à faire en phase 04**, en même temps que
+   l'arrêt de la file.
+2. **Phase 04 doit indexer les segments par lots, pas à chaque callback.** `save_transcript`
+   réécrit la structure entière ; l'appeler à chaque segment d'un fichier de 2 h serait
+   quadratique. Écrire le JSON en flux et n'indexer qu'aux paliers.
+3. **Aucune commande Tauri exposée.** La phase n'a pas d'interface ; `LibraryState` est
+   managé et ouvert au lancement, mais rien ne le lit encore côté frontend.
+4. **La migration entre volumes copie puis supprime**, sans reprise sur interruption : une
+   coupure de courant au milieu laisserait les deux copies. Non destructif (la source n'est
+   supprimée qu'après la copie complète), mais à revoir avec l'écran de la phase 10.
+5. **`tags.name` est `UNIQUE` sensible à la casse.** « Client » et « client » sont deux tags.
+   À trancher quand l'interface de saisie des tags arrivera (phase 05).

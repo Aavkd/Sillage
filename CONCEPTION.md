@@ -119,7 +119,7 @@ Une seule file, strictement séquentielle : `transcrire(f1) → LLM(f1) → tran
 
 ### 3.4 Modèle de données
 
-**Dossier bibliothèque** (emplacement choisi par l'utilisateur, défaut `%USERPROFILE%\Documents\Transcript`) :
+**Dossier bibliothèque** (emplacement choisi par l'utilisateur, défaut `%USERPROFILE%\Documents\Sillage`) :
 
 ```
 library/
@@ -150,6 +150,11 @@ source_transcript_hash, generated_at, content
 ```
 
 `source_transcript_hash ≠ transcript_hash` ⇒ la sortie est **obsolète** (décision #18).
+
+> **Précisé en phase 02.** `transcript_hash` n'est **pas stocké dans le JSON** : il se dérive du
+> texte affiché (verbatim + corrections). Seule la base en garde une copie, puisque c'est là que
+> la comparaison d'obsolescence a lieu. Une copie dans le JSON pourrait diverger du texte qu'elle
+> est censée décrire ; une valeur dérivée ne le peut pas.
 
 ### 3.5 Édition et conservation de la synchronisation
 
