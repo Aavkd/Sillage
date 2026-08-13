@@ -399,7 +399,18 @@ en mémoire.
    **Suppose PATCH 001** (vendor/PATCHES.md) : sans lui, ce callback ne part jamais quand
    le DTW est actif. Persister les bornes de segment **dérivées des mots**, pas celles
    renvoyées par whisper — voir spike/RESULTS.md §4.2.
+   > **Dette de la phase 02 à solder ici.** `Library::save_transcript` réécrit la structure
+   > entière et réindexe le texte : l'appeler à chaque callback est **quadratique** et coûte
+   > des minutes de CPU sur un fichier de 2 h. Écrire le JSON en flux et n'indexer qu'aux
+   > paliers. Détail : PROGRESS.md, phase 02, dette n° 2.
 6. File séquentielle persistée : positions, reprise au lancement, une seule tâche active.
+   `Database::requeue_interrupted()` (phase 02) remet en file ce qui était `running` au
+   moment de la fermeture.
+   > **Dette de la phase 02 à solder ici.** Tauri termine le processus **sans exécuter les
+   > destructeurs** de son état managé : la connexion SQLite n'est jamais fermée et le journal
+   > WAL jamais soldé. Sans danger — SQLite récupère à l'ouverture suivante, c'est testé — mais
+   > fermer explicitement sur `WindowEvent::Destroyed`, en même temps que l'arrêt de la file,
+   > est plus propre. Détail : PROGRESS.md, phase 02, dette n° 1.
 7. Progression et ETA dérivés de la **position audio réelle**.
 8. Gestion de l'échec de chargement pour VRAM insuffisante, message de CONCEPTION.md §8.
 9. Re-transcription d'une entrée existante avec un autre modèle ou une autre langue.
@@ -437,6 +448,9 @@ en mémoire.
    en échec, ligne d'attente.
 6. Titre éditable au clic (affordance « modifier »).
 7. Filtrage par tag, états « aucun résultat » et « filtre actif » de DESIGN.md §11.
+   > **Décision laissée par la phase 02.** `tags.name` est `UNIQUE` **sensible à la casse** :
+   > « Client » et « client » sont aujourd'hui deux tags distincts. À trancher au moment où
+   > l'interface de saisie existe. Détail : PROGRESS.md, phase 02, dette n° 5.
 
 **Critères d'acceptation**
 - [ ] Chaque métrique de DESIGN.md §7 vérifiée dans l'inspecteur — sidebar 232 px, barre de
@@ -629,6 +643,11 @@ tout est spécifié dans DESIGN.md §12.
    gestion des prompts personnalisés, carte « Coexistence VRAM ».
 4. Onglet **Bibliothèque** : emplacement du dossier avec migration, conservation de l'audio,
    dossier surveillé (présent, désactivé par défaut).
+   > **Dette de la phase 02 à solder ici.** `Library::relocate` existe et est testé, mais la
+   > migration **entre volumes** copie puis supprime, sans reprise sur interruption : une
+   > coupure au milieu laisse les deux copies. Non destructif — la source n'est supprimée
+   > qu'après une copie complète — mais l'écran doit le gérer. Détail : PROGRESS.md, phase 02,
+   > dette n° 4.
 5. Onglet **Système** : menu contextuel Explorer, lancement au démarrage, modèles installés
    avec tailles réelles, téléchargement et suppression.
 6. Onglet **Apparence** : roue 320/160, pastille + hex éditable, 5 préréglages, segmenté

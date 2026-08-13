@@ -276,3 +276,9 @@ Aucun — la phase 02 ne touche pas à l'interface.
    supprimée qu'après la copie complète), mais à revoir avec l'écran de la phase 10.
 5. **`tags.name` est `UNIQUE` sensible à la casse.** « Client » et « client » sont deux tags.
    À trancher quand l'interface de saisie des tags arrivera (phase 05).
+
+**Chaque point est reporté là où il devra être soldé** — ROADMAP phase 04 tâches 5 et 6
+(points 1 et 2), phase 05 tâche 7 (point 5), phase 10 tâche 4 (point 4) — plutôt que
+seulement ici : l'agent qui ouvre une phase lit la section de cette phase, pas la dette de la
+précédente. Les trois règles de stockage qui cassent en silence sont en outre reprises dans
+CLAUDE.md, comme l'est PATCH 001.

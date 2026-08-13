@@ -99,3 +99,16 @@ horodatages mot à mot s'excluent mutuellement.
 **Lire [vendor/PATCHES.md](vendor/PATCHES.md) avant toute montée de version de `whisper-rs`
 ou `whisper-rs-sys`.** PATCH 001 est silencieux en cas de régression : le streaming cesse
 simplement de fonctionner, sans erreur ni avertissement.
+
+## Stockage (phase 02)
+
+Trois règles qui cassent **en silence** si on les enfreint. Détail : PROGRESS.md, phase 02.
+
+1. **`data/<id>.json` fait foi ; la base est un index reconstructible.** Une transcription qui
+   prend du retard sur son index se répare ; l'inverse est du travail perdu.
+2. **Jamais `INSERT OR REPLACE` sur `transcripts`.** `REPLACE` supprime la ligne avant de la
+   réinsérer, et `ON DELETE CASCADE` emporte sorties LLM, file et tags. Utiliser
+   `INSERT … ON CONFLICT (id) DO UPDATE`, comme `save_transcript`.
+3. **`body` et `transcript_hash` s'écrivent ensemble.** Les deux se dérivent du *texte affiché*
+   (verbatim + corrections). N'en mettre qu'un à jour fait diverger la recherche du badge
+   `OBSOLÈTE`, sans qu'aucun test générique ne s'en aperçoive.
