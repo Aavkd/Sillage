@@ -1,0 +1,67 @@
+/*
+ * Colour tokens — DESIGN.md §2.1 (dark) and §2.2 (light).
+ *
+ * The values are written exactly as DESIGN.md lists them, down to the `.40` / `.055` shorthand,
+ * so the two can be compared character for character. tests/tokens.test.ts asserts every one of
+ * them against a table transcribed from that document; do not change a value here without
+ * changing DESIGN.md in the same commit.
+ *
+ * These are the tokens that depend on the theme alone. The five accent-derived ones
+ * (--accent, --accentSoft, --dashed, --onAccent, --mesh) are computed in lib/accent.ts and
+ * written onto the root element, because they change with the accent as well as the theme.
+ */
+
+:root[data-theme='dark'] {
+  --page: #120C08;
+  --frame: #1A120C;
+  --text: #F7EEE5;
+  --dim: rgba(247,238,229,.62);
+  --faint: rgba(247,238,229,.40);
+  --panel: rgba(255,240,226,.055);
+  --panelStrong: rgba(255,240,226,.09);
+  --border: rgba(255,232,210,.13);
+  --hair: rgba(255,232,210,.08);
+  --sunken: rgba(0,0,0,.24);
+  --sel: rgba(255,240,226,.10);
+  --dropBg: rgba(255,240,226,.035);
+  --warn: #E8B15C;
+  --warnBorder: rgba(232,177,92,.42);
+  --err: #E58367;
+  --errBorder: rgba(229,131,103,.42);
+  --errSoft: rgba(229,131,103,.16);
+  --ok: #93C79A;
+}
+
+:root[data-theme='light'] {
+  --page: #F4EAE0;
+  --frame: #FBF4EC;
+  --text: #241811;
+  --dim: rgba(36,24,17,.62);
+  --faint: rgba(36,24,17,.42);
+  --panel: rgba(255,252,248,.62);
+  --panelStrong: rgba(255,252,248,.82);
+  --border: rgba(90,55,30,.14);
+  --hair: rgba(90,55,30,.09);
+  --sunken: rgba(90,55,30,.06);
+  --sel: rgba(90,55,30,.08);
+  --dropBg: rgba(255,252,248,.5);
+  --warn: #9A6512;
+  --warnBorder: rgba(154,101,18,.35);
+  --err: #B4472A;
+  --errBorder: rgba(180,71,42,.35);
+  --errSoft: rgba(180,71,42,.14);
+  --ok: #3F7A49;
+}
+
+/*
+ * Font stacks — DESIGN.md §1.
+ *
+ * The `… Variable` families are the local woff2 files installed by @fontsource-variable; the
+ * plain name after it lets a system-installed copy serve as well. The final fallbacks are the
+ * ones DESIGN.md §1 specifies.
+ */
+:root {
+  --font-ui: 'Figtree Variable', Figtree, Helvetica, sans-serif;
+  --font-read: 'Newsreader Variable', Newsreader, Georgia, serif;
+  --font-mono: 'JetBrains Mono Variable', 'JetBrains Mono', ui-monospace, monospace;
+}

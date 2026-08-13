@@ -269,14 +269,27 @@ correctement maintenant évite de le rétro-ajuster dans douze composants plus t
 8. Page de démonstration temporaire affichant tous les jetons, pour la vérification visuelle.
 
 **Critères d'acceptation**
-- [ ] Chaque jeton de DESIGN.md §2.1 et §2.2 existe et vaut exactement la valeur indiquée
-- [ ] Basculer le thème ne recharge pas la page et ne provoque aucun flash
-- [ ] Changer l'accent re-teinte le maillage **et** `--onAccent` bascule correctement au
-      passage du seuil 0.62 (vérifier avec `#8E9A5B` puis `#E08A4B`)
-- [ ] `mix`, `lum`, `hsl2rgb` couverts par des tests unitaires, comparés aux valeurs du prototype
-- [ ] Aucune requête réseau au démarrage (onglet réseau vide)
+- [x] Chaque jeton de DESIGN.md §2.1 et §2.2 existe et vaut exactement la valeur indiquée
+      — 36 comparaisons automatiques contre la table du prototype, plus les 22 valeurs
+      calculées relevées dans la page
+- [x] Basculer le thème ne recharge pas la page et ne provoque aucun flash — prouvé par une
+      sentinelle conservée à travers thème, accents et saisie invalide
+- [x] Changer l'accent re-teinte le maillage **et** `--onAccent` bascule correctement au
+      passage du seuil 0.62 ~~(vérifier avec `#8E9A5B` puis `#E08A4B`)~~
+      > **Correction du critère.** Ces deux accents n'encadrent pas le seuil : `lum` vaut
+      > 0,5617 et 0,6139, tous deux **sous** 0,62, comme les cinq préréglages du §2.5. Le
+      > basculement est vérifié avec `#D8D83C` (0,7773), atteignable à la roue. Détail et
+      > décision restante : PROGRESS.md, phase 01.
+- [x] `mix`, `lum`, `hsl2rgb` couverts par des tests unitaires, comparés aux valeurs du prototype
+      — les fonctions sont **extraites de `Sillage.dc.html`** à l'exécution des tests
+- [x] Aucune requête réseau au démarrage (onglet réseau vide) — 26 requêtes, 0 externe ;
+      bundle de production audité, aucune référence à Google Fonts
 - [ ] La fenêtre se déplace par la barre custom ; réduire / agrandir / fermer fonctionnent
-- [ ] Thème et accent survivent au redémarrage
+      — contrôles couverts par des tests de composant, zone de drag posée et absente des
+      boutons, fenêtre redimensionnable (`WS_THICKFRAME`) ; **le geste de déplacement à la
+      souris reste à confirmer**
+- [x] Thème et accent survivent au redémarrage — testé sur le magasin *et* sur l'état de
+      commande, une seconde instance relisant le fichier
 
 **Commit** : `phase 01: tauri shell, theme tokens, live accent system`
 

@@ -62,3 +62,115 @@ Aucun — la phase 00 ne touche pas à l'interface.
   MSBuild). N'en définir qu'une échoue en 2 s.
 - `libclang.dll` obligatoire ; `WHISPER_DONT_GENERATE_BINDINGS` inopérant sous Windows.
 - `CUDAARCHS=89` pour éviter de compiler toutes les architectures.
+
+---
+
+## Phase 01 — Coque Tauri et système de thème
+
+- **Statut** : terminée
+- **Tag** : `phase-01`
+- **Vérifié le** : 13 août 2026
+
+### Pile retenue
+
+| | |
+|---|---|
+| Frontend | React 19 · TypeScript 5.9 · Vite 8 — **choix de l'utilisateur** |
+| Coque | Tauri 2.11.5, plugins `dialog`, `fs`, `notification`, `single-instance` |
+| Polices | `@fontsource-variable` (figtree `wght`, newsreader `opsz`, jetbrains-mono `wght`) |
+| Tests | Vitest 4 (**84 tests**) · `cargo test` (**17 tests**) |
+| Binaire | `sillage.exe` 4,4 Mo · installeur NSIS 1,9 Mo (avant CUDA) |
+
+### Vérifications
+
+| Critère | Constat |
+|---|---|
+| Jetons §2.1 / §2.2 | **36 comparaisons automatiques** contre la table du prototype, plus relevé des 22 valeurs calculées dans la page — exactes |
+| Bascule de thème sans rechargement | Vérifié par sentinelle `window.__sentinel` conservée à travers thème, 4 accents et une saisie invalide |
+| Maillage re-teinté | `--mesh`, `--accentSoft`, `--dashed` suivent l'accent ; alphas `.16/.38` (sombre) → `.18/.45` (clair) |
+| `--onAccent` au seuil 0.62 | Bascule vérifiée avec `#D8D83C` (lum 0,7773 → `#241811`) ; **voir la contradiction ci-dessous** |
+| `mix` · `lum` · `hsl2rgb` | Comparés au prototype lui-même, fonctions extraites de `Sillage.dc.html` à l'exécution du test |
+| Aucune requête réseau | 26 requêtes, **0 externe** ; les 3 woff2 servis en local, `document.fonts.status = loaded` |
+| Persistance | 17 tests Rust : fichier absent, corrompu, partiel, accent invalide, aller-retour, écriture atomique, écrasement, **relance** |
+| Fenêtre native | Sondée par Win32 sur le binaire construit : classe `Tauri Window`, zone client **1360 × 900**, `WS_THICKFRAME` présent (**redimensionnable par les bords**), pas de cadre natif visible |
+| Barre de titre | 8 tests de composant : hauteur 46 px, `padding 0 18px`, zone de drag présente et **absente des trois boutons**, chaque bouton appelle sa méthode et elle seule |
+| Rendu | **Vérifié par l'utilisateur** sur le binaire construit |
+
+### Contradiction entre documents — à trancher par l'utilisateur
+
+**ROADMAP.md phase 01** demande de vérifier que `--onAccent` « bascule correctement au passage
+du seuil 0.62 (**vérifier avec `#8E9A5B` puis `#E08A4B`**) ». Ces deux accents **ne l'encadrent
+pas** : `lum(#8E9A5B)` = 0,5617 et `lum(#E08A4B)` = 0,6139, tous deux **sous** 0,62. Les cinq
+préréglages du §2.5 le sont (détail ajouté à DESIGN.md §2.3). Passer de l'un à l'autre ne change
+donc rien : les deux prennent le texte clair `#FFF8F1`.
+
+Le seuil est bien implémenté et testé, avec un accent qui le franchit réellement. La formule du
+prototype fait foi (ROADMAP §A) et n'a pas été touchée. **Si l'intention était que ces deux
+accents précis encadrent le seuil, c'est le seuil qui doit changer** (il faudrait ≈ 0,58), et
+cela relève d'une décision produit — DESIGN.md §2.3 et le prototype disent tous deux 0.62.
+
+### Écarts au design
+
+1. **Ombre portée du cadre non reproduite.** Des deux valeurs du §5, seule
+   `0 0 0 1px var(--border)` est rendue, en `inset`. L'ombre `0 40px 90px -40px` n'a rien sur
+   quoi tomber à l'intérieur de la fenêtre ; la rendre visible imposerait une marge transparente
+   et donc de renoncer aux 1360 × 900 de contenu. DESIGN.md §6 complété.
+2. **Rayon du cadre annulé en fenêtre agrandie.** 22 px sinon. Le prototype ne couvre pas cet
+   état ; garder le rayon laisserait voir le bureau dans les coins.
+3. **Survol des contrôles de fenêtre** : `--dim` → `--text`. Le prototype ne leur donne aucun
+   état interactif, mais ils doivent être utilisables. Aucun jeton nouveau.
+4. **Familles de polices suffixées `Variable`.** Les piles complètes sont documentées dans
+   DESIGN.md §1 ; les replis du §1 sont conservés en fin de pile.
+
+### Décisions prises en autonomie
+
+1. **Réglages stockés dans `app_config_dir`**, pas dans le dossier bibliothèque : l'emplacement
+   de ce dossier est lui-même un réglage (phase 10), il ne peut pas contenir sa propre adresse.
+2. **Fenêtre transparente** (`transparent: true`) — seule façon d'obtenir un vrai rayon de 22 px
+   plutôt qu'un rayon peint dans une fenêtre carrée.
+3. **Fenêtre créée visible**, contrairement au motif habituel « masquée puis `show()` ».
+   Découvert en phase 01 : **WebView2 n'exécute aucun script tant que la fenêtre est masquée**,
+   donc l'appel censé la révéler ne part jamais et la fenêtre reste invisible définitivement.
+   Reproduit avec `requestAnimationFrame` puis avec un effet React, sondé au Win32
+   (`IsWindowVisible` faux après 8 s dans les deux cas). Le scintillement est évité autrement :
+   le thème est posé sur le document **avant** le premier rendu, et la fenêtre transparente ne
+   peint rien avant que React ne commite. DESIGN.md §6 complété.
+4. **Écriture atomique des réglages** (fichier temporaire puis `rename`) et **dégradation vers
+   les défauts** sur fichier corrompu : une configuration illisible ne doit jamais empêcher
+   l'application de s'ouvrir, l'utilisateur n'aurait aucun moyen de la réparer.
+5. **CSP verrouillée** dans `tauri.conf.json` (`default-src 'self'`, pas de `connect-src`
+   externe). Rend la règle B.5 structurelle plutôt que déclarative.
+6. **`wheelColor` / `wheelColorAt` écrits dès maintenant** dans `lib/accent.ts`, avec leurs
+   tests. La roue elle-même reste en phase 10 ; seules les fonctions pures sont là, pour que
+   la formule du §3 soit couverte pendant qu'on y est.
+7. **Les tests comparent au prototype, pas à des constantes recopiées.** `tests/prototype.ts`
+   extrait `mix`, `lum`, `hsl2rgb` et `hex` de `Sillage.dc.html` à l'exécution. Des constantes
+   recopiées ne prouveraient que l'accord de deux copies de la même faute de frappe.
+8. **Cible d'empaquetage NSIS seule** (pas de MSI). À revoir en phase 12.
+9. **Icône de remplacement générée** (carré arrondi `--frame` + disque accent). La vraie icône
+   est une tâche de la phase 12. Dossiers d'icônes iOS/Android supprimés : projet desktop.
+10. **Aucune taille minimale de fenêtre** : DESIGN.md n'en donne pas, et en inventer une serait
+    une valeur non fondée.
+
+### Dette laissée
+
+1. **Déplacement de la fenêtre à la souris non vérifié en conditions réelles.** La zone de drag
+   est posée sur la barre et absente des trois boutons (test de composant), les trois contrôles
+   appellent bien leur méthode, le binaire expose `WS_THICKFRAME` donc se redimensionne par les
+   bords, et le rendu a été **vérifié par l'utilisateur**. Reste le geste lui-même — déplacer la
+   fenêtre en tirant la barre — qu'aucun test automatisé ne couvre.
+2. **`TokenGallery` est de l'échafaudage.** Page de vérification temporaire demandée par la
+   tâche 8 ; la phase 05 la remplace par l'écran Bibliothèque.
+3. **Icône de remplacement** — phase 12.
+4. **`CUDA_PATH` pointe encore vers `v11.0`** dans l'environnement courant. Sans effet en
+   phase 01 (aucune dépendance CUDA), bloquant dès la phase 04. Déjà consigné dans CLAUDE.md.
+5. **Aucun test de rendu de composant** pour l'instant : la vérification passe par les jetons
+   calculés dans la page. À reconsidérer quand les écrans réels arrivent en phase 05.
+6. **Profil `release` laissé aux valeurs du gabarit Tauri** : `opt-level = "s"`, `lto = true`,
+   `panic = "abort"`. Deux points à réexaminer **avec une mesure**, pas par principe :
+   - `opt-level = "s"` optimise la taille, alors que la charge utile est déjà dominée par les
+     DLL CUDA (923 Mo, phase 00) — quelques Mo de binaire ne pèsent rien à côté. À revoir en
+     **phase 03**, où le calcul des pics et le hachage en flux sont des boucles chaudes en Rust.
+   - `panic = "abort"` rend impossible tout rattrapage de panique à la frontière des commandes,
+     alors que CONCEPTION §8 exige « jamais un crash » sur VRAM insuffisante. À revoir en
+     **phase 04**.

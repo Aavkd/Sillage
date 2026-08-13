@@ -387,9 +387,16 @@ L'export reflète toujours les corrections, jamais le verbatim d'origine — sau
   thème clair complet, accent choisi par l'utilisateur. Voir [DESIGN.md](DESIGN.md).
 - **Dépôt** : `https://github.com/Aavkd/Sillage.git`
 
+**Tranché en phase 01**
+
+- **Framework frontend** : **React 19 + TypeScript + Vite**, choisi par l'utilisateur.
+  Motif retenu : l'écosystème le plus fourni pour ce qui vient — virtualisation d'une
+  transcription de 2 h (phase 06), outillage de test mature, défaut documenté de Tauri v2.
+- **Polices** : paquets `@fontsource-variable`, woff2 servis depuis le bundle local.
+
 **Reste à trancher**
 
-- **Framework frontend** — libre, à condition de tenir les métriques de DESIGN.md.
+- Rien à ce stade.
 
 ---
 

@@ -39,6 +39,18 @@ chargées depuis Google Fonts : l'app fonctionne hors ligne.
 
 `font-family` de repli : `Figtree, Helvetica, sans-serif`.
 
+**Piles retenues** (phase 01). Les fichiers viennent des paquets `@fontsource-variable`, dont les
+familles portent le suffixe `Variable` ; les piles complètes sont exposées en jetons :
+
+```
+--font-ui     'Figtree Variable', Figtree, Helvetica, sans-serif
+--font-read   'Newsreader Variable', Newsreader, Georgia, serif
+--font-mono   'JetBrains Mono Variable', 'JetBrains Mono', ui-monospace, monospace
+```
+
+Les trois sont des polices variables : Figtree couvre 400–700 et JetBrains Mono 400–500 en un
+fichier chacune, Newsreader porte l'axe `opsz` 6..72 appliqué par `font-optical-sizing: auto`.
+
 ---
 
 ## 2. Jetons de couleur
@@ -110,6 +122,13 @@ lum(hex)         // → (0.299·R + 0.587·G + 0.114·B) / 255
 `--onAccent` est la couleur du texte posé **sur** l'accent (bouton « Enregistrer », bouton
 lecture, boutons primaires des modales). Le seuil 0.62 est volontairement haut : il bascule en
 texte sombre dès que l'accent devient clair.
+
+> **Mesuré en phase 01.** Les **cinq préréglages du §2.5 sont tous sous le seuil** et prennent
+> donc le texte clair `#FFF8F1` : `#E08A4B` 0,6139 · `#C98A2E` 0,5739 · `#8E9A5B` 0,5617 ·
+> `#D9694E` 0,5310 · `#B9755F` 0,5287. Le seuil n'est franchi que par les accents clairs
+> atteignables à la roue ou au champ hex — l'arc jaune-vert, environ **28 %** du disque,
+> jusqu'à `#D8D83C` (0,7773). Toute vérification du basculement doit donc utiliser un accent
+> de cet arc, pas deux préréglages.
 
 ### 2.4 Fond maillé (`--mesh`)
 
@@ -218,7 +237,21 @@ Pastille rec       0 0 0 6px var(--errSoft)
 - Fenêtre principale : **1360 × 900** (bibliothèque), **1360 × 980** (détail — même fenêtre,
   contenu plus haut ; la fenêtre reste redimensionnable, 1360×900 est la taille par défaut).
 - Décorations natives **désactivées**. Barre de titre custom, hauteur **46 px**.
-- Rayon du cadre : 22 px.
+- Rayon du cadre : 22 px. La fenêtre est donc **transparente** (`transparent: true`), sans quoi
+  le rayon serait peint à l'intérieur d'une fenêtre carrée et les coins montreraient le fond
+  par défaut de la WebView. Le rayon retombe à 0 quand la fenêtre est agrandie : une fenêtre au
+  bord de l'écran laisserait sinon voir le bureau dans ses coins.
+- La fenêtre est créée **visible**. Le motif habituel « fenêtre masquée puis `show()` depuis le
+  frontend » ne fonctionne pas ici : **WebView2 n'exécute aucun script tant que la fenêtre est
+  masquée**, donc l'appel censé la révéler ne part jamais et la fenêtre ne s'affiche plus
+  jamais. Constaté en phase 01, avec `requestAnimationFrame` **et** avec un effet React.
+  Aucun scintillement pour autant : le thème enregistré est posé sur le document avant le
+  premier rendu, et rien n'est peint avant, la fenêtre étant transparente.
+- **Ombre du cadre** : des deux valeurs du §5, seule la ligne `0 0 0 1px var(--border)` est
+  reproduite, en `inset` pour ne pas être rognée par le bord de la fenêtre. L'ombre portée
+  `0 40px 90px -40px` n'a rien sur quoi tomber à l'intérieur des limites de la fenêtre ; la
+  rendre visible imposerait d'agrandir la fenêtre d'une marge transparente, donc de renoncer
+  aux 1360 × 900 de contenu. Écart constaté en phase 01.
 - Barre de titre bibliothèque : padding `0 18px`, zone de drag (`data-tauri-drag-region`).
   - Gauche : pastille 9×9 px `border-radius: 50%` en `--accent`, puis « Sillage » 13px/600, `letter-spacing: .02em`
   - Droite : `— ▢ ✕`, JetBrains Mono 15px, `--dim`, `gap: 18px`

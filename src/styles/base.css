@@ -1,0 +1,77 @@
+/*
+ * Global chassis — DESIGN.md §6.
+ *
+ * The window is undecorated and transparent so the 22px frame radius is real rather than
+ * painted inside a square window. Everything the user sees is drawn by `.frame`.
+ */
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+html,
+body {
+  /* The window is transparent; only `.frame` paints. */
+  background: transparent;
+  overflow: hidden;
+}
+
+body {
+  font-family: var(--font-ui);
+  color: var(--text);
+  /* The interface is dense and small; grayscale AA keeps 13px labels from looking bolded. */
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Nothing in the chassis is selectable text; the transcript re-enables it in phase 06. */
+body {
+  user-select: none;
+  cursor: default;
+}
+
+/* The rounded, mesh-tinted window body. */
+.frame {
+  position: relative;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--frame);
+  border-radius: 22px;
+  /*
+   * DESIGN.md §5 specifies `0 40px 90px -40px rgba(20,8,0,.8), 0 0 0 1px var(--border)`.
+   * The outer drop shadow has nothing to fall on inside the window bounds, so only the
+   * hairline is reproduced, as an inset so it is not clipped by the window edge.
+   * See PROGRESS.md — écarts au design.
+   */
+  box-shadow: inset 0 0 0 1px var(--border);
+}
+
+/* A maximized window is flush with the screen edges; a radius there would show desktop corners. */
+:root[data-maximized='true'] .frame {
+  border-radius: 0;
+}
+
+/* DESIGN.md §2.4 — the mesh sits above --frame and below the content. */
+.mesh {
+  position: absolute;
+  inset: 0;
+  background: var(--mesh);
+  pointer-events: none;
+}
+
+button {
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+}

@@ -1,0 +1,21 @@
+/*
+ * Fonts — DESIGN.md §1.
+ *
+ * All three are loaded from local woff2 files shipped inside node_modules by
+ * @fontsource-variable and bundled by Vite. Nothing is ever fetched from fonts.googleapis.com:
+ * the app has to work offline (ROADMAP.md §B.5), and the CSP in tauri.conf.json blocks any
+ * cross-origin font request outright.
+ *
+ * Variable files are used on purpose. Newsreader carries the `opsz` 6..72 axis DESIGN.md §1
+ * calls for, applied automatically by `font-optical-sizing: auto`; Figtree covers 400–700 and
+ * JetBrains Mono 400–500 from a single file each.
+ */
+
+/* Figtree — interface: titles, buttons, labels, cards. Weights 400, 500, 600, 700. */
+@import '@fontsource-variable/figtree/wght.css';
+
+/* Newsreader — reading: transcript, summaries, streaming text. Weights 400, 500, opsz 6..72. */
+@import '@fontsource-variable/newsreader/opsz.css';
+
+/* JetBrains Mono — technical: timestamps, metadata, values, shortcuts, hex. Weights 400, 500. */
+@import '@fontsource-variable/jetbrains-mono/wght.css';
