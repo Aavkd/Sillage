@@ -126,8 +126,10 @@ Sillage/
       queue/                 file séquentielle persistée
       export/                txt, md, docx, srt, vtt, json
       settings/              lecture/écriture de la configuration
-    resources/               ffmpeg.exe, yt-dlp.exe, polices
+    resources/               ffmpeg.exe, ffprobe.exe, yt-dlp.exe — non versionnés
     tauri.conf.json
+  scripts/
+    fetch-resources.ps1      pose ffmpeg et ffprobe dans src-tauri/resources/
   src/                       frontend
     styles/tokens.css        jetons du §2 de DESIGN.md
     lib/accent.ts            mix, lum, hsl2rgb, roue
@@ -358,13 +360,27 @@ La forme d'onde du lecteur (96 barres, DESIGN.md §8) sera un sous-échantillonn
 8. Attente de stabilisation de taille pour les fichiers en cours d'écriture.
 
 **Critères d'acceptation**
-- [ ] Un fichier de chaque format listé s'ingère (jeu d'essai versionné ou généré par ffmpeg)
-- [ ] Un `.mp4` avec piste audio s'ingère ; un `.mp4` muet est **rejeté** avec le message dédié
-- [ ] Fichier corrompu, durée nulle, durée < 1 s : rejetés, messages distincts, en français
-- [ ] Un doublon est détecté par SHA-256 et propose les deux issues (§8)
-- [ ] Les pics d'un fichier de 15 min pèsent moins de 200 Ko
-- [ ] Un fichier de 2 h s'ingère sans dépasser 500 Mo de RSS
-- [ ] Aucun appel à un `ffmpeg` du PATH (vérifier en renommant le ffmpeg système)
+- [x] Un fichier de chaque format listé s'ingère — **13/13**, jeu d'essai généré par ffmpeg à
+      l'exécution plutôt que versionné (aucun binaire au dépôt)
+- [x] Un `.mp4` avec piste audio s'ingère ; un `.mp4` muet est **rejeté** avec le message dédié
+      — et le refus ne laisse ni copie, ni ligne d'index, ni entrée de file
+- [x] Fichier corrompu, durée nulle, durée < 1 s : rejetés, messages distincts, en français
+      — borne vérifiée des deux côtés, 0,99 s refusé et 1,01 s accepté
+- [x] Un doublon est détecté par SHA-256 et propose les deux issues (§8) — « ouvrir l'existante »
+      n'écrit rien, « transcrire à nouveau » crée une seconde entrée avec sa propre copie
+- [x] Les pics d'un fichier de 15 min pèsent moins de 200 Ko — **45 011 octets**
+- [x] Un fichier de 2 h s'ingère sans dépasser 500 Mo de RSS — **8,8 Mo** de crête, mesurés
+      dans le test même, le PCM décodé (460 Mo) n'étant jamais conservé
+- [x] Aucun appel à un `ffmpeg` du PATH ~~(vérifier en renommant le ffmpeg système)~~
+      > **Critère vérifié autrement.** Un test n'a pas à renommer un binaire partagé par toute la
+      > machine. La preuve est prise des deux côtés : ingestion **réussie** avec les binaires
+      > embarqués renommés en `sillage-decodeur.exe`, puis **échec** quand le dossier de
+      > ressources est vide — alors que `ffmpeg` est bien sur le `PATH`. Un repli sur le `PATH`
+      > ferait échouer le premier test ou réussir le second.
+
+> **Prérequis.** `ffmpeg.exe` et `ffprobe.exe` ne sont pas versionnés. Lancer une fois
+> `scripts/fetch-resources.ps1` ; sans eux les tests d'ingestion **s'ignorent** en affichant
+> `IGNORÉ`, et `cargo test` reste vert. Détail : PROGRESS.md, phase 03, dette n° 5.
 
 **Commit** : `phase 03: ffmpeg ingestion, format support, waveform peaks, dedup`
 
@@ -444,6 +460,11 @@ en mémoire.
 3. Bouton « Enregistrer » (ouvre la modale de la phase 09 — inerte ici).
 4. Zone de dépôt : glisser-déposer **sur toute la fenêtre**, sélecteur de fichiers,
    champ URL (inerte ici).
+   > **Dette de la phase 03 à solder ici.** L'ingestion ne rapporte **aucune progression** et ne
+   > s'annule pas : un fichier de 2 h occupe ~40 s pendant lesquelles la zone de dépôt et la ligne
+   > d'attente n'ont rien à afficher. Détail : PROGRESS.md, phase 03, dette n° 3.
+   > Les refus portent un `kind()` stable (`aucune-piste-audio`, `trop-court`, …) à côté de leur
+   > message : y accrocher l'état de la carte plutôt qu'au texte.
 5. Cartes dans tous leurs états : en cours avec streaming et curseur clignotant, normale,
    en échec, ligne d'attente.
 6. Titre éditable au clic (affordance « modifier »).
@@ -710,6 +731,11 @@ tout est spécifié dans DESIGN.md §12.
 4. Passe complète sur l'inventaire d'états de DESIGN.md §13, **dans les deux thèmes**.
 5. Raccourcis complets et écran d'aide les listant.
 6. Installeur MSI/NSIS : DLL CUDA, ffmpeg, yt-dlp, polices, clés de registre du menu contextuel.
+   > **Dette des phases 00 et 03 à solder ici.** La charge utile atteint ~1,2 Go : 923 Mo de DLL
+   > CUDA (dont 637 Mo pour `cublasLt64_12.dll`) et 282 Mo de ffmpeg + ffprobe. Deux leviers
+   > mesurables : `nvprune` vers `sm_89` seul, et le build ffmpeg **« essentials »** (~85 Mo
+   > chacun) — Sillage n'utilise aucun encodeur vidéo. Détail : PROGRESS.md, phase 00 dette n° 2
+   > et phase 03 dette n° 1.
 7. Désinstallation propre : registre nettoyé, **dossier bibliothèque préservé**.
 8. Journalisation dans un fichier, avec un moyen de l'ouvrir depuis les réglages.
 9. Icône d'application et de fenêtre.

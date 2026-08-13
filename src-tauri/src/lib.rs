@@ -1,12 +1,14 @@
 pub mod commands;
 pub mod db;
+pub mod ingest;
 pub mod library;
 pub mod model;
 pub mod settings;
 
+use tauri::path::BaseDirectory;
 use tauri::Manager;
 
-use crate::commands::{LibraryState, SettingsState};
+use crate::commands::{IngestState, LibraryState, SettingsState};
 use crate::settings::{SettingsStore, SETTINGS_FILE};
 
 /// Brings the existing window forward. Used by `single-instance`: a second launch must never
@@ -49,6 +51,24 @@ pub fn run() {
             let root = settings.snapshot().library_root(documents);
             app.manage(LibraryState::open(root));
             app.manage(settings);
+
+            // ffmpeg and ffprobe ship with the application (ROADMAP phase 03, task 1). The
+            // resource directory is the only place they are ever looked for: a broken or absent
+            // ffmpeg on the user's PATH must change nothing about how Sillage behaves.
+            let resources = app
+                .path()
+                .resolve(crate::ingest::RESOURCE_DIR, BaseDirectory::Resource)?;
+            let ingest = IngestState::new(resources);
+            if let Some(missing) = ingest.missing_tool() {
+                // Not fatal: the rest of the application works, and phase 05 shows the state of
+                // the engine on the library screen. Failing the launch would leave the user with
+                // an app that will not open and no way to find out why.
+                eprintln!(
+                    "Sillage : {} est introuvable dans les ressources ; l'ingestion est indisponible.",
+                    missing.file_name()
+                );
+            }
+            app.manage(ingest);
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![

@@ -50,7 +50,7 @@ impl Peaks {
     /// hair must not produce a bar pointing the wrong way.
     #[must_use]
     pub fn from_pcm(samples: &[f32], sample_rate: u32, bucket_ms: u16) -> Self {
-        let per_bucket = (u64::from(sample_rate) * u64::from(bucket_ms) / 1000).max(1) as usize;
+        let per_bucket = samples_per_bucket(sample_rate, bucket_ms);
 
         let values = samples
             .chunks(per_bucket)
@@ -99,6 +99,17 @@ impl Peaks {
             .collect()
     }
 
+    /// Number of buckets held.
+    #[must_use]
+    pub fn len(&self) -> usize {
+        self.values.len()
+    }
+
+    #[must_use]
+    pub fn is_empty(&self) -> bool {
+        self.values.is_empty()
+    }
+
     /// Serializes to the compact binary form stored in `data/<id>.peaks`.
     #[must_use]
     pub fn encode(&self) -> Vec<u8> {
@@ -139,6 +150,95 @@ impl Peaks {
             values: body[..count].to_vec(),
         })
     }
+}
+
+/// Builds [`Peaks`] from PCM arriving a chunk at a time.
+///
+/// [`Peaks::from_pcm`] needs the whole recording in memory, which phase 03 cannot afford: two
+/// hours of 16 kHz mono f32 is 460 Mo on its own, and the budget for the entire ingestion is
+/// 500 Mo of RSS (ROADMAP phase 03). The builder keeps one partial bucket instead, so peak
+/// memory is the same for a two-minute memo and a two-hour recording.
+///
+/// It produces exactly what [`Peaks::from_pcm`] would have produced on the concatenation of the
+/// chunks — including the last, incomplete bucket, which `chunks` also emits.
+#[derive(Debug, Clone)]
+pub struct PeaksBuilder {
+    bucket_ms: u16,
+    samples_per_bucket: usize,
+    values: Vec<u8>,
+    /// Loudest sample of the bucket being filled.
+    loudest: f32,
+    /// How many samples that bucket already holds.
+    filled: usize,
+    total_samples: u64,
+}
+
+impl PeaksBuilder {
+    #[must_use]
+    pub fn new(sample_rate: u32, bucket_ms: u16) -> Self {
+        Self {
+            bucket_ms,
+            samples_per_bucket: samples_per_bucket(sample_rate, bucket_ms),
+            values: Vec::new(),
+            loudest: 0.0,
+            filled: 0,
+            total_samples: 0,
+        }
+    }
+
+    /// Folds one chunk of mono f32 PCM in.
+    pub fn push(&mut self, samples: &[f32]) {
+        self.total_samples += samples.len() as u64;
+
+        let mut rest = samples;
+        while !rest.is_empty() {
+            let room = self.samples_per_bucket - self.filled;
+            let take = room.min(rest.len());
+            let (head, tail) = rest.split_at(take);
+
+            self.loudest = head
+                .iter()
+                .map(|sample| sample.abs())
+                .fold(self.loudest, f32::max);
+            self.filled += take;
+
+            if self.filled == self.samples_per_bucket {
+                self.close_bucket();
+            }
+            rest = tail;
+        }
+    }
+
+    /// Total samples seen so far.
+    #[must_use]
+    pub fn total_samples(&self) -> u64 {
+        self.total_samples
+    }
+
+    /// Closes the last, partial bucket and hands over the peaks.
+    #[must_use]
+    pub fn finish(mut self) -> Peaks {
+        if self.filled > 0 {
+            self.close_bucket();
+        }
+        Peaks {
+            bucket_ms: self.bucket_ms,
+            values: self.values,
+        }
+    }
+
+    fn close_bucket(&mut self) {
+        self.values
+            .push((self.loudest.clamp(0.0, 1.0) * 255.0).round() as u8);
+        self.loudest = 0.0;
+        self.filled = 0;
+    }
+}
+
+/// Samples covered by one bucket. Never zero: a zero-width bucket would divide by nothing and
+/// the loop above would never advance.
+fn samples_per_bucket(sample_rate: u32, bucket_ms: u16) -> usize {
+    (u64::from(sample_rate) * u64::from(bucket_ms) / 1000).max(1) as usize
 }
 
 #[cfg(test)]
@@ -254,6 +354,71 @@ mod tests {
         let bars = peaks.downsample(96);
         assert_eq!(bars.iter().copied().max(), Some(200), "the peak survived");
         assert_eq!(bars[50], 200, "and stayed where it belongs");
+    }
+
+    /// Deterministic pseudo-audio: no crate needed, and the same samples every run.
+    fn wobble(len: usize) -> Vec<f32> {
+        (0..len)
+            .map(|i| ((i as f32) * 0.017).sin() * ((i % 977) as f32 / 977.0))
+            .collect()
+    }
+
+    #[test]
+    fn the_builder_agrees_with_the_whole_slice_whatever_the_chunking() {
+        // The property that matters: streaming the decode must not change a single bar. Chunk
+        // sizes are chosen around the 320-sample bucket — under it, over it, and coprime with it.
+        let samples = wobble(50_000);
+        let expected = Peaks::from_pcm(&samples, 16_000, DEFAULT_BUCKET_MS);
+
+        for chunk in [1, 7, 319, 320, 321, 1_024, 4_096, 50_000] {
+            let mut builder = PeaksBuilder::new(16_000, DEFAULT_BUCKET_MS);
+            for slice in samples.chunks(chunk) {
+                builder.push(slice);
+            }
+            let built = builder.finish();
+
+            assert_eq!(built, expected, "chunk size {chunk}");
+        }
+    }
+
+    #[test]
+    fn the_builder_keeps_the_last_partial_bucket() {
+        // 480 samples at 16 kHz is one full 20 ms bucket plus half of another. Dropping the
+        // remainder would shorten every recording by up to 20 ms.
+        let mut builder = PeaksBuilder::new(16_000, DEFAULT_BUCKET_MS);
+        builder.push(&vec![1.0_f32; 480]);
+        let peaks = builder.finish();
+
+        assert_eq!(peaks.values, vec![255, 255]);
+        assert_eq!(
+            peaks,
+            Peaks::from_pcm(&vec![1.0_f32; 480], 16_000, DEFAULT_BUCKET_MS)
+        );
+    }
+
+    #[test]
+    fn the_builder_counts_every_sample_it_was_given() {
+        // The exact duration of a media file is this count, not what the container claims.
+        let mut builder = PeaksBuilder::new(16_000, DEFAULT_BUCKET_MS);
+        for _ in 0..10 {
+            builder.push(&[0.0; 1_234]);
+        }
+        assert_eq!(builder.total_samples(), 12_340);
+    }
+
+    #[test]
+    fn a_builder_given_nothing_produces_nothing() {
+        let peaks = PeaksBuilder::new(16_000, DEFAULT_BUCKET_MS).finish();
+        assert!(peaks.is_empty());
+        assert_eq!(peaks.duration_ms(), 0);
+    }
+
+    #[test]
+    fn the_builder_clamps_like_the_whole_slice_does() {
+        let mut builder = PeaksBuilder::new(16_000, DEFAULT_BUCKET_MS);
+        builder.push(&[2.5]);
+        builder.push(&[-7.0]);
+        assert_eq!(builder.finish().values, vec![255]);
     }
 
     #[test]

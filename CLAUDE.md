@@ -100,6 +100,36 @@ horodatages mot à mot s'excluent mutuellement.
 ou `whisper-rs-sys`.** PATCH 001 est silencieux en cas de régression : le streaming cesse
 simplement de fonctionner, sans erreur ni avertissement.
 
+## Ingestion (phase 03)
+
+`ffmpeg.exe` et `ffprobe.exe` sont **embarqués**, jamais pris sur le `PATH`. Ils ne sont pas
+versionnés : lancer une fois
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/fetch-resources.ps1
+```
+
+qui les copie depuis le ffmpeg installé sur la machine (`-Download` pour les récupérer sur le
+réseau, à la demande explicite seulement). Sans eux, les tests d'ingestion **s'ignorent en
+affichant `IGNORÉ`** au lieu d'échouer — lire la sortie avant de conclure qu'une phase passe.
+
+Quatre règles qui cassent en silence :
+
+1. **Jamais `Command::new("ffmpeg")`.** Tout passe par `ingest::Tools::command`, qui tient deux
+   chemins absolus. Un `ffmpeg` du `PATH` ferait passer les tests sur cette machine et
+   échouerait chez l'utilisateur.
+2. **`bundle.resources` de `tauri.conf.json` et `ingest::RESOURCE_DIR` doivent concorder.**
+   Rien ne le vérifie à la compilation ; un désaccord se voit au premier fichier déposé.
+3. **Le décodeur ne conserve jamais le PCM.** 2 h font 460 Mo, pour un budget de 500 Mo de RSS.
+   Les pics se calculent au vol (`PeaksBuilder`) et les échantillons sont jetés. Mesuré :
+   **8,8 Mo** de crête sur 2 h.
+4. **La durée annoncée par le conteneur ne sert à rien refuser.** Seul le nombre d'échantillons
+   sortis du décodeur fait foi ; un mp3 VBR sans en-tête Xing annonce n'importe quoi.
+5. **ffmpeg n'a pas de séparateur `--`.** Le passer est accepté et ne protège de rien :
+   l'argument suivant reste lu comme une option. Tout chemin remis à ffmpeg ou ffprobe doit être
+   **absolu** (`Ingestor::ingest` s'en charge), sans quoi `-mémo.wav` revient en
+   « Unrecognized option ».
+
 ## Stockage (phase 02)
 
 Trois règles qui cassent **en silence** si on les enfreint. Détail : PROGRESS.md, phase 02.

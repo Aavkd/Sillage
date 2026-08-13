@@ -38,6 +38,12 @@ tempfile = "3"
 [profile.release]
 codegen-units = 1
 lto = true
-opt-level = "s"
+# Measured in phase 03, on the two hot loops it added (PROGRESS.md, phase 01 debt n° 6):
+# streaming SHA-256 runs at 673 Mo/s here against 276 Mo/s at `opt-level = "s"` — 2,4×. The
+# peaks loop is indifferent. The cost is 1,86 Mo of binary (4,67 → 6,44 Mo), against a payload
+# already dominated by 923 Mo of CUDA DLLs and 282 Mo of ffmpeg: 0,15 % of what ships.
+opt-level = 3
+# Still to settle in phase 04: `abort` makes it impossible to catch a panic at the command
+# boundary, while CONCEPTION §8 requires « jamais un crash » on insufficient VRAM.
 panic = "abort"
 strip = true

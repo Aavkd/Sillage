@@ -81,7 +81,7 @@ notes et prompts personnalisés désactivés · horodatages activés · chaînag
 | Frontend | Web (framework à définir avec le design) | Éditeur, lecteur, bibliothèque |
 | Backend | Rust (process principal Tauri) | Pas de sidecar Python |
 | STT | whisper.cpp via `whisper-rs`, feature `cuda` | Modèles GGML |
-| Décodage audio | ffmpeg, embarqué comme ressource | Tout format, extraction piste vidéo |
+| Décodage audio | ffmpeg **et ffprobe**, embarqués comme ressources | Tout format, extraction piste vidéo |
 | Téléchargement URL | yt-dlp, embarqué comme ressource | Point d'entrée « coller une URL » |
 | Base | SQLite (`rusqlite`) + FTS5 | Index + recherche plein texte |
 | LLM | Ollama HTTP (`localhost:11434`) / API cloud | Abstraction fournisseur |
@@ -106,6 +106,16 @@ Fichier / URL
 Les pics de forme d'onde sont calculés **pendant** le décodage ffmpeg, à partir du PCM déjà en
 mémoire, et stockés avec la transcription. Le frontend ne redécode jamais l'audio pour dessiner
 la waveform.
+
+> **Précisé en phase 03.** Le PCM n'est pas seulement calculé au vol, il n'est **jamais
+> conservé** : 2 h font 460 Mo, pour un budget de 500 Mo de RSS. Le décodeur remet des blocs à un
+> `PcmSink` et les oublie ; la phase 03 y branche le calcul des pics, la phase 04 y branchera
+> whisper. Crête mesurée sur 2 h : **8,8 Mo**.
+>
+> **ffprobe est embarqué en plus de ffmpeg.** Distinguer un fichier corrompu d'une vidéo muette
+> demande un contrat lisible par machine ; le JSON de ffprobe en est un, la prose de ffmpeg sur
+> stderr n'en est pas un. La durée annoncée par le conteneur n'est en revanche jamais un motif de
+> refus : seul le nombre d'échantillons sortis du décodeur fait foi.
 
 ### 3.3 Ordonnancement (décision #17)
 

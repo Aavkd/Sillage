@@ -5,6 +5,7 @@ use std::sync::Mutex;
 
 use tauri::State;
 
+use crate::ingest::{Ingestor, Tool, Tools};
 use crate::library::Library;
 use crate::settings::{Appearance, Settings, SettingsError, SettingsStore};
 
@@ -52,6 +53,44 @@ impl LibraryState {
     #[must_use]
     pub fn error(&self) -> Option<String> {
         self.with(|_| ()).err()
+    }
+}
+
+/// The ingestion pipeline, bound to the binaries this installation shipped with.
+///
+/// Resolved once at launch from the Tauri resource directory. ROADMAP phase 03 task 1 forbids
+/// depending on the PATH, and the way that stays true is that there is exactly one place where
+/// the paths are decided — here — and it never looks anywhere else.
+pub struct IngestState {
+    ingestor: Ingestor,
+}
+
+impl IngestState {
+    #[must_use]
+    pub fn new(resources_dir: impl Into<PathBuf>) -> Self {
+        Self {
+            ingestor: Ingestor::new(Tools::in_directory(resources_dir.into())),
+        }
+    }
+
+    #[must_use]
+    pub fn ingestor(&self) -> &Ingestor {
+        &self.ingestor
+    }
+
+    /// Whether ffmpeg and ffprobe are where they should be.
+    ///
+    /// Read at launch so the library screen of phase 05 can say the installation is incomplete,
+    /// rather than letting the first dropped file be what discovers it.
+    #[must_use]
+    pub fn tools_available(&self) -> bool {
+        self.ingestor.tools().are_present()
+    }
+
+    /// The binary that is missing, if any.
+    #[must_use]
+    pub fn missing_tool(&self) -> Option<Tool> {
+        self.ingestor.tools().missing()
     }
 }
 

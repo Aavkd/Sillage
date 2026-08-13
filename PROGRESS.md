@@ -282,3 +282,138 @@ Aucun — la phase 02 ne touche pas à l'interface.
 seulement ici : l'agent qui ouvre une phase lit la section de cette phase, pas la dette de la
 précédente. Les trois règles de stockage qui cassent en silence sont en outre reprises dans
 CLAUDE.md, comme l'est PATCH 001.
+
+---
+
+## Phase 03 — Ingestion
+
+- **Statut** : terminée
+- **Tag** : `phase-03`
+- **Vérifié le** : 14 août 2026
+
+### Ce qui est en place
+
+| | |
+|---|---|
+| Binaires | `ffmpeg.exe` + `ffprobe.exe` embarqués en ressource Tauri, **jamais le `PATH`** ; posés par `scripts/fetch-resources.ps1` |
+| Formats | 13 extensions : 8 audio, 5 vidéo avec extraction de la piste |
+| Décodage | 16 kHz mono f32 **en flux**, `PcmSink` réutilisable tel quel par la phase 04 |
+| Pics | `PeaksBuilder` incrémental, blocs de 20 ms — **45 011 octets** pour 15 min (budget : 200 Ko) |
+| Empreinte | **8,8 Mo de RSS crête** pour un fichier de 2 h (budget : 500 Mo) |
+| Erreurs | 12 refus, chacun avec son message français et un `kind()` stable |
+| Doublons | SHA-256 en flux, les deux issues de CONCEPTION §8 exposées |
+| Tests | **193** unitaires Rust (contre 143) + **16** d'intégration d'ingestion + 9 de phase 02 · 84 Vitest inchangés |
+| Sur demande | 2 tests `#[ignore]` : l'ingestion de 2 h et le banc `hot_loops` du choix de profil |
+
+### Vérifications
+
+| Critère ROADMAP | Constat |
+|---|---|
+| Un fichier de chaque format s'ingère | **13/13**, jeu d'essai généré par ffmpeg à l'exécution — aucun binaire versionné |
+| `.mp4` sonore accepté, `.mp4` muet rejeté | Message dédié « aucune piste audio … vidéo muette » ; le refus ne laisse ni copie, ni ligne, ni entrée de file |
+| Corrompu / durée nulle / < 1 s | Trois `kind()` distincts, trois messages distincts, tous en français ; borne vérifiée à 0,99 s (refus) et 1,01 s (accepté) |
+| Doublon par SHA-256 | Même fichier sous un autre nom : détecté ; « ouvrir l'existante » n'écrit rien, « transcrire à nouveau » crée une seconde entrée avec sa propre copie |
+| Pics de 15 min < 200 Ko | **45 011 octets**, 45 000 blocs, forme d'onde non nulle |
+| 2 h sous 500 Mo de RSS | **8,8 Mo** de crête, mesurés dans le test par `K32GetProcessMemoryInfo` ; 360 000 blocs de pics complets |
+| Aucun `ffmpeg` du `PATH` | Ingestion réussie avec les binaires **renommés** (`sillage-decodeur.exe`), puis **échec** quand le dossier de ressources est vide — alors que `ffmpeg` est sur le `PATH` de la machine |
+| Attente de stabilisation | Fichier écrit par tranches pendant l'ingestion : les 3 s complètes sont ingérées, la copie est identique à l'octet près |
+| Empaquetage | La charge de l'installeur contient `resources\ffmpeg.exe` et `resources\ffprobe.exe` **à côté** de `sillage.exe` — la disposition que résout `BaseDirectory::Resource`. Vérifié en listant le NSIS, sans l'installer |
+| Artefacts | `sillage.exe` **7,05 Mo** · installeur NSIS **92,36 Mo** (contre 1,9 Mo en phase 01, avant ffmpeg) |
+| Séquence ROADMAP §C | `cargo fmt --check`, `cargo clippy --all-targets -D warnings`, `cargo test`, `npm run lint/typecheck/test`, `npm run tauri build` — toutes vertes |
+
+### Mesure demandée par la phase 01 (dette n° 6)
+
+`opt-level` sur les deux boucles chaudes que cette phase ajoute, charge de 2 h :
+
+| | `opt-level = "s"` | `opt-level = 3` |
+|---|---|---|
+| Calcul des pics (2 h) | 434 ms | 442 ms |
+| SHA-256 en flux | 276 Mo/s | **673 Mo/s** |
+| `sillage.exe` (`cargo build --release`) | 4,67 Mo | 6,44 Mo |
+
+Le calcul des pics est insensible ; **le hachage est 2,4× plus rapide**, et le binaire grossit de
+**1,86 Mo**. Sur une ingestion réelle le gain est de l'ordre de 0,3 s pour un fichier de 2 h —
+négligeable — mais son prix l'est encore plus : la charge utile est dominée par les DLL CUDA
+(923 Mo) et désormais ffmpeg (282 Mo), soit **0,15 %** de ce qui est livré.
+**`opt-level = 3` retenu**, la mesure est reportée dans `Cargo.toml`. `panic = "abort"` reste à
+trancher en phase 04, comme prévu.
+
+Les 6,44 Mo sont ceux de `cargo build --release` seul ; le binaire livré en fait 7,05 Mo, le
+`tauri build` y embarquant le frontend.
+
+*Réserve* : la mesure de taille à `opt-level = 3` a été prise après quelques lignes ajoutées entre
+les deux compilations (la normalisation de chemin, décision n° 12). L'écart de 1,86 Mo est deux
+ordres de grandeur au-dessus de ce que ces lignes peuvent coûter ; la conclusion ne tient pas à
+elles.
+
+### Écarts au design
+
+Aucun — la phase 03 ne touche pas à l'interface.
+
+### Décisions prises en autonomie
+
+1. **`ffprobe.exe` embarqué en plus de `ffmpeg.exe`.** La tâche 1 ne nomme que ffmpeg, mais le
+   critère « messages distincts » exige de séparer *fichier corrompu* de *vidéo muette*. Le JSON
+   de ffprobe est un contrat ; la prose de ffmpeg sur stderr n'en est pas un, et une détection par
+   correspondance de chaînes casserait à la première montée de version. Coût : 141 Mo de plus.
+2. **Les binaires sont *copiés depuis la machine*, pas téléchargés.** `fetch-resources.ps1`
+   résout le vrai exécutable derrière un shim scoop ou chocolatey. Le téléchargement existe mais
+   demande `-Download` : la règle B.5 interdit le réseau non sollicité, y compris à l'outillage.
+3. **La durée annoncée par le conteneur ne motive aucun refus.** Seul le nombre d'échantillons
+   sortis du décodeur fait foi. Refuser sur la valeur annoncée n'économiserait que le décodage
+   d'un fichier qui, par définition, dure moins d'une seconde.
+4. **Le décodage précède la copie.** Une source est donc lue deux fois (décodage + SHA-256), mais
+   un refus ne laisse **rien** dans `media/` : pas d'orphelin à nettoyer plus tard, et pas de
+   copie de 200 Mo pour un fichier qui sera refusé.
+5. **L'ingestion met en file.** `queue_items` existe depuis la phase 02 avec ses positions, et son
+   producteur naturel est l'ingestion — c'est ce qui satisfait « dépôt multiple → mise en file
+   dans l'ordre de dépôt » (CONCEPTION §6). La phase 04 n'écrit que le moteur qui la vide.
+6. **Titre provisoire = nom du fichier sans extension, verbatim.** Pas d'embellissement :
+   transformer `entretien_marchand` en « Entretien Marchand » serait inventer, et serait faux dès
+   le premier `re_2024_v2_FINAL`. La phase 08 le remplace par un titre généré.
+7. **Extension normalisée en minuscules** dans `media/<id>.<ext>` : `.MP3` et `.mp3` ne doivent pas
+   être deux choses différentes. Le format d'origine est conservé, c'est ce qu'exige la tâche 6.
+8. **Chaque refus porte un `kind()`** — un identifiant court et stable, à côté du message. Le
+   message est libre d'être reformulé ; le code compare le `kind`, et la phase 05 y accrochera
+   l'icône de la carte en échec.
+9. **Bloc de pics laissé à 20 ms** (défaut de la phase 02) : 45 Ko pour 15 min, et une résolution
+   qui laisse largement la place au zoom de la phase 06 au-delà des 96 barres du lecteur.
+10. **Aucune commande Tauri exposée**, comme en phase 02. `IngestState` est managé et résout les
+    ressources au lancement — ce qui prouve l'empaquetage — mais c'est la phase 05 qui branche la
+    zone de dépôt.
+11. **`CREATE_NO_WINDOW` sur tous les lancements.** Sans lui, chaque ingestion fait clignoter une
+    console devant l'application. Rien ne le signale : c'est simplement visible.
+12. **Le chemin source est rendu absolu avant d'atteindre ffmpeg.** Découvert en le vérifiant :
+    **ffmpeg et ffprobe n'ont pas de séparateur `--`.** Le passer est accepté et ne fait rien, et
+    l'argument suivant reste lu comme une option — un fichier `-mémo.wav` revient en
+    « Unrecognized option 'mémo.wav' », soit un refus « fichier illisible » pour une raison qui
+    n'a rien à voir. Un chemin Windows absolu commence par une lettre de lecteur ou une
+    contre-oblique et ne peut pas être confondu avec une option. `fs::canonicalize` est écarté :
+    il rendrait la forme `\\?\`, qui finirait affichée dans `source_path`.
+
+### Dette laissée
+
+1. **Charge utile : +282 Mo** pour ffmpeg et ffprobe (build « full » de gyan.dev, celui installé
+   sur la machine). Sillage n'utilise aucun encodeur vidéo ; le build **« essentials »** (~85 Mo
+   chacun) couvre tout ce dont le code se sert. À mesurer et à substituer en **phase 12**, en même
+   temps que le `nvprune` des DLL CUDA (dette de phase 00, n° 2).
+2. **Le critère « renommer le ffmpeg système » est prouvé autrement.** Un test n'a pas à renommer
+   un binaire partagé par toute la machine. La preuve est prise des deux côtés : ingestion réussie
+   avec les binaires renommés, et **échec** quand le dossier de ressources est vide — alors que
+   `ffmpeg` est bien sur le `PATH`. Un repli sur le `PATH` ferait échouer le premier test ou
+   réussir le second.
+3. **Aucune progression pendant l'ingestion.** Un fichier de 2 h occupe ~40 s sans le moindre
+   retour. Acceptable sans interface ; **la phase 05 devra l'exposer** (la zone de dépôt et la
+   ligne d'attente de DESIGN.md §7 n'ont rien à afficher entre-temps), et l'annulation n'existe
+   pas non plus.
+4. **La concordance entre `bundle.resources` de `tauri.conf.json` et `ingest::RESOURCE_DIR` n'est
+   vérifiée par rien** à la compilation. Un désaccord ne se voit qu'au premier fichier déposé,
+   sous la forme d'une « installation incomplète ».
+5. **Les tests d'ingestion s'ignorent silencieusement** si `src-tauri/resources/` est vide — avec
+   un `IGNORÉ` sur stderr, mais un `cargo test` vert. Sur une machine fraîche, lancer
+   `scripts/fetch-resources.ps1` **avant** de conclure qu'une phase passe. Repris dans CLAUDE.md.
+6. **La mesure de RSS est spécifique à Windows** (`K32GetProcessMemoryInfo`, `#[cfg(windows)]`).
+   Sans effet — la cible est Windows — mais le critère n'est pas vérifié ailleurs.
+7. **`Library::save_transcript` est toujours appelé en entier** à l'ingestion. Sans conséquence
+   ici (une seule écriture par fichier), mais c'est la même fonction que la dette n° 2 de la
+   phase 02 vise pour la phase 04.
